@@ -41,22 +41,45 @@ function MappingPage() {
     });
   }, [q, kind]);
 
-  const download = (kind: "csv" | "json") => {
-    const stamp = new Date().toISOString().slice(0, 10);
+  const download = (fmt: "csv" | "json") => {
+    const now = new Date();
+    const stamp = now.toISOString().slice(0, 10);
+    const meta = {
+      format: `swmmx-inp-mapping/${fmt}`,
+      swmmx_schema_version: SWMMX_SCHEMA_VERSION,
+      mapping_spec_revision: MAPPING_SPEC_REVISION,
+      source_dialects: SWMMX_SOURCE_DIALECTS,
+      exported_at: now.toISOString(),
+      row_count: rows.length,
+      total_rows: MAPPING.length,
+      filters: { search: q || null, kind },
+    };
     let blob: Blob;
     let filename: string;
-    if (kind === "json") {
-      blob = new Blob([JSON.stringify(rows, null, 2)], { type: "application/json" });
-      filename = `swmmx-inp-mapping-${stamp}.json`;
+    if (fmt === "json") {
+      blob = new Blob(
+        [JSON.stringify({ metadata: meta, rows }, null, 2)],
+        { type: "application/json" },
+      );
+      filename = `swmmx-inp-mapping-v${SWMMX_SCHEMA_VERSION}-${stamp}.json`;
     } else {
       const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
+      const metaLines = [
+        `# swmmx_schema_version=${SWMMX_SCHEMA_VERSION}`,
+        `# mapping_spec_revision=${MAPPING_SPEC_REVISION}`,
+        `# source_dialects=${SWMMX_SOURCE_DIALECTS.join("|")}`,
+        `# exported_at=${meta.exported_at}`,
+        `# row_count=${rows.length} total_rows=${MAPPING.length}`,
+        `# filter_search=${q || ""} filter_kind=${kind}`,
+      ];
       const header = ["section", "target", "kind", "round_trip", "notes"];
       const lines = [
+        ...metaLines,
         header.join(","),
         ...rows.map(r => [r.section, r.target, r.kind, r.roundTrip, r.notes].map(esc).join(",")),
       ];
       blob = new Blob([lines.join("\n")], { type: "text/csv" });
-      filename = `swmmx-inp-mapping-${stamp}.csv`;
+      filename = `swmmx-inp-mapping-v${SWMMX_SCHEMA_VERSION}-${stamp}.csv`;
     }
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
