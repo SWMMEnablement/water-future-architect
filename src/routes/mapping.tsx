@@ -7,6 +7,12 @@ import {
   SWMMX_SCHEMA_VERSION,
   MAPPING_SPEC_REVISION,
   SWMMX_SOURCE_DIALECTS,
+  TOOL_NAME,
+  TOOL_VERSION,
+  TOOL_COMMIT,
+  TOOL_BUILD_DATE,
+  rowDialects,
+  type Dialect,
   type MappingRow,
 } from "../lib/inp-mapping";
 
@@ -14,7 +20,7 @@ export const Route = createFileRoute("/mapping")({
   head: () => ({
     meta: [
       { title: ".inp ↔ SWMM-X Mapping — SWMM-X Docs" },
-      { name: "description", content: "Section-by-section mapping from EPA-SWMM5 .inp to the SWMM-X (SXPF) project format." },
+      { name: "description", content: "Section-by-section mapping from EPA-SWMM5/6 .inp to the SWMM-X (SXPF) project format." },
     ],
   }),
   component: MappingPage,
@@ -24,14 +30,22 @@ const KINDS: Array<MappingRow["kind"] | "all"> = [
   "all", "topology", "forcings", "scenarios", "manifest", "controls", "quality", "ui", "passthrough",
 ];
 
+type DialectFilter = "all" | Dialect;
+
 function MappingPage() {
   const [q, setQ] = useState("");
   const [kind, setKind] = useState<MappingRow["kind"] | "all">("all");
+  const [dialect, setDialect] = useState<DialectFilter>("all");
+  const [inputDialect, setInputDialect] = useState<Dialect>("SWMM5");
+  const [selectedSections, setSelectedSections] = useState<Set<string>>(new Set());
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return MAPPING.filter(r => {
       if (kind !== "all" && r.kind !== kind) return false;
+      if (dialect !== "all" && !rowDialects(r).includes(dialect)) return false;
+      if (selectedSections.size > 0 && !selectedSections.has(r.section)) return false;
       if (!needle) return true;
       return (
         r.section.toLowerCase().includes(needle) ||
@@ -39,26 +53,48 @@ function MappingPage() {
         r.notes.toLowerCase().includes(needle)
       );
     });
-  }, [q, kind]);
+  }, [q, kind, dialect, selectedSections]);
+
+  const toggleSection = (s: string) =>
+    setSelectedSections(prev => {
+      const next = new Set(prev);
+      next.has(s) ? next.delete(s) : next.add(s);
+      return next;
+    });
+
+  const buildMetadata = (fmt: "csv" | "json") => ({
+    format: `swmmx-inp-mapping/${fmt}`,
+    swmmx_schema_version: SWMMX_SCHEMA_VERSION,
+    mapping_spec_revision: MAPPING_SPEC_REVISION,
+    source_dialects: SWMMX_SOURCE_DIALECTS,
+    provenance: {
+      tool: TOOL_NAME,
+      tool_version: TOOL_VERSION,
+      commit: TOOL_COMMIT,
+      build_date: TOOL_BUILD_DATE,
+      input_inp_dialect: inputDialect,
+      exporter: "web",
+    },
+    exported_at: new Date().toISOString(),
+    row_count: rows.length,
+    total_rows: MAPPING.length,
+    filters: {
+      search: q || null,
+      kind,
+      dialect,
+      sections: selectedSections.size > 0 ? [...selectedSections].sort() : null,
+    },
+  });
 
   const download = (fmt: "csv" | "json") => {
-    const now = new Date();
-    const stamp = now.toISOString().slice(0, 10);
-    const meta = {
-      format: `swmmx-inp-mapping/${fmt}`,
-      swmmx_schema_version: SWMMX_SCHEMA_VERSION,
-      mapping_spec_revision: MAPPING_SPEC_REVISION,
-      source_dialects: SWMMX_SOURCE_DIALECTS,
-      exported_at: now.toISOString(),
-      row_count: rows.length,
-      total_rows: MAPPING.length,
-      filters: { search: q || null, kind },
-    };
+    const meta = buildMetadata(fmt);
+    const stamp = meta.exported_at.slice(0, 10);
+    const enriched = rows.map(r => ({ ...r, dialects: rowDialects(r) }));
     let blob: Blob;
     let filename: string;
     if (fmt === "json") {
       blob = new Blob(
-        [JSON.stringify({ metadata: meta, rows }, null, 2)],
+        [JSON.stringify({ metadata: meta, rows: enriched }, null, 2)],
         { type: "application/json" },
       );
       filename = `swmmx-inp-mapping-v${SWMMX_SCHEMA_VERSION}-${stamp}.json`;
@@ -67,16 +103,21 @@ function MappingPage() {
       const metaLines = [
         `# swmmx_schema_version=${SWMMX_SCHEMA_VERSION}`,
         `# mapping_spec_revision=${MAPPING_SPEC_REVISION}`,
+        `# tool=${TOOL_NAME}@${TOOL_VERSION} commit=${TOOL_COMMIT} build=${TOOL_BUILD_DATE}`,
+        `# input_inp_dialect=${inputDialect}`,
         `# source_dialects=${SWMMX_SOURCE_DIALECTS.join("|")}`,
         `# exported_at=${meta.exported_at}`,
         `# row_count=${rows.length} total_rows=${MAPPING.length}`,
-        `# filter_search=${q || ""} filter_kind=${kind}`,
+        `# filter_search=${q || ""} filter_kind=${kind} filter_dialect=${dialect}`,
+        `# filter_sections=${selectedSections.size > 0 ? [...selectedSections].sort().join("|") : ""}`,
       ];
-      const header = ["section", "target", "kind", "round_trip", "notes"];
+      const header = ["section", "target", "kind", "round_trip", "dialects", "notes"];
       const lines = [
         ...metaLines,
         header.join(","),
-        ...rows.map(r => [r.section, r.target, r.kind, r.roundTrip, r.notes].map(esc).join(",")),
+        ...enriched.map(r =>
+          [r.section, r.target, r.kind, r.roundTrip, r.dialects.join("|"), r.notes].map(esc).join(","),
+        ),
       ];
       blob = new Blob([lines.join("\n")], { type: "text/csv" });
       filename = `swmmx-inp-mapping-v${SWMMX_SCHEMA_VERSION}-${stamp}.csv`;
@@ -94,7 +135,7 @@ function MappingPage() {
       <div className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Spec 1</div>
       <h1 className="mt-1 text-3xl font-bold tracking-tight">.inp ↔ SWMM-X mapping</h1>
       <p className="mt-3 max-w-2xl text-[15px] leading-7 text-muted-foreground">
-        Every EPA-SWMM5 <code className="rounded bg-muted px-1 py-0.5 font-mono text-[13px]">.inp</code> section
+        Every EPA-SWMM5/6 <code className="rounded bg-muted px-1 py-0.5 font-mono text-[13px]">.inp</code> section
         maps to a typed target in the SXPF directory. Unknown sections passthrough verbatim so round-trip is
         always possible.
       </p>
@@ -123,6 +164,75 @@ function MappingPage() {
         </div>
       </div>
 
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10.5px] font-mono uppercase tracking-wider text-muted-foreground">Dialect</span>
+          {(["all", ...SWMMX_SOURCE_DIALECTS] as DialectFilter[]).map(d => (
+            <button
+              key={d}
+              onClick={() => setDialect(d)}
+              className={`rounded-md border px-2.5 py-1 text-xs font-mono uppercase tracking-wider transition-colors ${
+                dialect === d
+                  ? "border-foreground/40 bg-accent text-foreground"
+                  : "border-border text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {d}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={() => setPickerOpen(o => !o)}
+          className="rounded-md border border-border bg-card px-2.5 py-1 text-xs font-mono uppercase tracking-wider text-foreground/80 hover:bg-accent"
+        >
+          Sections {selectedSections.size > 0 ? `(${selectedSections.size})` : "(all)"}
+        </button>
+        {selectedSections.size > 0 && (
+          <button
+            onClick={() => setSelectedSections(new Set())}
+            className="text-xs font-mono uppercase tracking-wider text-muted-foreground hover:text-foreground"
+          >
+            clear
+          </button>
+        )}
+      </div>
+
+      {pickerOpen && (
+        <div className="mt-3 rounded-md border border-border bg-card p-3">
+          <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+            <span>Select sections to include in the export. Leave empty to export all.</span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setSelectedSections(new Set(MAPPING.map(r => r.section)))}
+                className="font-mono uppercase tracking-wider hover:text-foreground"
+              >all</button>
+              <button
+                onClick={() => setSelectedSections(new Set())}
+                className="font-mono uppercase tracking-wider hover:text-foreground"
+              >none</button>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {MAPPING.map(r => {
+              const active = selectedSections.has(r.section);
+              return (
+                <button
+                  key={r.section}
+                  onClick={() => toggleSection(r.section)}
+                  className={`rounded border px-2 py-0.5 font-mono text-[10.5px] uppercase tracking-wider transition-colors ${
+                    active
+                      ? "border-foreground/40 bg-accent text-foreground"
+                      : "border-border text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {r.section}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
           <span>{rows.length} of {MAPPING.length} rows</span>
@@ -130,9 +240,23 @@ function MappingPage() {
             schema <span className="text-foreground/80">v{SWMMX_SCHEMA_VERSION}</span>
             <span className="mx-1.5 text-border">·</span>
             spec <span className="text-foreground/80">{MAPPING_SPEC_REVISION}</span>
+            <span className="mx-1.5 text-border">·</span>
+            tool <span className="text-foreground/80">{TOOL_NAME}@{TOOL_VERSION}</span>
+            <span className="mx-1.5 text-border">·</span>
+            commit <span className="text-foreground/80">{TOOL_COMMIT}</span>
           </span>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-1.5 text-[10.5px] font-mono uppercase tracking-wider text-muted-foreground">
+            input
+            <select
+              value={inputDialect}
+              onChange={e => setInputDialect(e.target.value as Dialect)}
+              className="rounded border border-border bg-card px-2 py-1 text-xs text-foreground"
+            >
+              {SWMMX_SOURCE_DIALECTS.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </label>
           <button
             onClick={() => download("csv")}
             className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-mono uppercase tracking-wider text-foreground/80 hover:bg-accent hover:text-foreground"
@@ -155,6 +279,7 @@ function MappingPage() {
               <th className="px-3 py-2 font-medium">.inp section</th>
               <th className="px-3 py-2 font-medium">SXPF target</th>
               <th className="px-3 py-2 font-medium">Kind</th>
+              <th className="px-3 py-2 font-medium">Dialects</th>
               <th className="px-3 py-2 font-medium">Round-trip</th>
               <th className="px-3 py-2 font-medium">Notes</th>
             </tr>
@@ -169,6 +294,9 @@ function MappingPage() {
                     {r.kind}
                   </span>
                 </td>
+                <td className="px-3 py-2.5 font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground">
+                  {rowDialects(r).join(" · ")}
+                </td>
                 <td className={`px-3 py-2.5 font-mono text-[11px] uppercase tracking-wider ${RT_COLOR[r.roundTrip]}`}>
                   {r.roundTrip}
                 </td>
@@ -176,7 +304,7 @@ function MappingPage() {
               </tr>
             ))}
             {rows.length === 0 && (
-              <tr><td colSpan={5} className="px-3 py-10 text-center text-sm text-muted-foreground">No rows match.</td></tr>
+              <tr><td colSpan={6} className="px-3 py-10 text-center text-sm text-muted-foreground">No rows match.</td></tr>
             )}
           </tbody>
         </table>

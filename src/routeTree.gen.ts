@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SchemasRouteImport } from './routes/schemas'
 import { Route as MappingRouteImport } from './routes/mapping'
+import { Route as DiffRouteImport } from './routes/diff'
 import { Route as IndexRouteImport } from './routes/index'
 
 const SchemasRoute = SchemasRouteImport.update({
@@ -23,6 +24,11 @@ const MappingRoute = MappingRouteImport.update({
   path: '/mapping',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DiffRoute = DiffRouteImport.update({
+  id: '/diff',
+  path: '/diff',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -31,30 +37,34 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/diff': typeof DiffRoute
   '/mapping': typeof MappingRoute
   '/schemas': typeof SchemasRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/diff': typeof DiffRoute
   '/mapping': typeof MappingRoute
   '/schemas': typeof SchemasRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/diff': typeof DiffRoute
   '/mapping': typeof MappingRoute
   '/schemas': typeof SchemasRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/mapping' | '/schemas'
+  fullPaths: '/' | '/diff' | '/mapping' | '/schemas'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/mapping' | '/schemas'
-  id: '__root__' | '/' | '/mapping' | '/schemas'
+  to: '/' | '/diff' | '/mapping' | '/schemas'
+  id: '__root__' | '/' | '/diff' | '/mapping' | '/schemas'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DiffRoute: typeof DiffRoute
   MappingRoute: typeof MappingRoute
   SchemasRoute: typeof SchemasRoute
 }
@@ -75,6 +85,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MappingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/diff': {
+      id: '/diff'
+      path: '/diff'
+      fullPath: '/diff'
+      preLoaderRoute: typeof DiffRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -87,6 +104,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DiffRoute: DiffRoute,
   MappingRoute: MappingRoute,
   SchemasRoute: SchemasRoute,
 }
