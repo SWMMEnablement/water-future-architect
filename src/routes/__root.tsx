@@ -102,6 +102,7 @@ function RootComponent() {
                 <NavLink to="/" label="Architecture plan" />
                 <NavLink to="/mapping" label=".inp ↔ SWMM-X" />
                 <NavLink to="/schemas" label="Schema viewer" />
+                <NavLink to="/diff" label="Mapping diff" />
               </nav>
               <div className="mt-10 rounded-md border border-border bg-card p-3 text-xs text-muted-foreground">
                 Draft spec — design discussion. Not yet implemented.
