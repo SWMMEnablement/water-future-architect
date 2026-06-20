@@ -1,6 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { MAPPING, KIND_COLOR, RT_COLOR, type MappingRow } from "../lib/inp-mapping";
+import {
+  MAPPING,
+  KIND_COLOR,
+  RT_COLOR,
+  SWMMX_SCHEMA_VERSION,
+  MAPPING_SPEC_REVISION,
+  SWMMX_SOURCE_DIALECTS,
+  type MappingRow,
+} from "../lib/inp-mapping";
 
 export const Route = createFileRoute("/mapping")({
   head: () => ({
@@ -33,22 +41,45 @@ function MappingPage() {
     });
   }, [q, kind]);
 
-  const download = (kind: "csv" | "json") => {
-    const stamp = new Date().toISOString().slice(0, 10);
+  const download = (fmt: "csv" | "json") => {
+    const now = new Date();
+    const stamp = now.toISOString().slice(0, 10);
+    const meta = {
+      format: `swmmx-inp-mapping/${fmt}`,
+      swmmx_schema_version: SWMMX_SCHEMA_VERSION,
+      mapping_spec_revision: MAPPING_SPEC_REVISION,
+      source_dialects: SWMMX_SOURCE_DIALECTS,
+      exported_at: now.toISOString(),
+      row_count: rows.length,
+      total_rows: MAPPING.length,
+      filters: { search: q || null, kind },
+    };
     let blob: Blob;
     let filename: string;
-    if (kind === "json") {
-      blob = new Blob([JSON.stringify(rows, null, 2)], { type: "application/json" });
-      filename = `swmmx-inp-mapping-${stamp}.json`;
+    if (fmt === "json") {
+      blob = new Blob(
+        [JSON.stringify({ metadata: meta, rows }, null, 2)],
+        { type: "application/json" },
+      );
+      filename = `swmmx-inp-mapping-v${SWMMX_SCHEMA_VERSION}-${stamp}.json`;
     } else {
       const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
+      const metaLines = [
+        `# swmmx_schema_version=${SWMMX_SCHEMA_VERSION}`,
+        `# mapping_spec_revision=${MAPPING_SPEC_REVISION}`,
+        `# source_dialects=${SWMMX_SOURCE_DIALECTS.join("|")}`,
+        `# exported_at=${meta.exported_at}`,
+        `# row_count=${rows.length} total_rows=${MAPPING.length}`,
+        `# filter_search=${q || ""} filter_kind=${kind}`,
+      ];
       const header = ["section", "target", "kind", "round_trip", "notes"];
       const lines = [
+        ...metaLines,
         header.join(","),
         ...rows.map(r => [r.section, r.target, r.kind, r.roundTrip, r.notes].map(esc).join(",")),
       ];
       blob = new Blob([lines.join("\n")], { type: "text/csv" });
-      filename = `swmmx-inp-mapping-${stamp}.csv`;
+      filename = `swmmx-inp-mapping-v${SWMMX_SCHEMA_VERSION}-${stamp}.csv`;
     }
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -93,8 +124,13 @@ function MappingPage() {
       </div>
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-        <div className="text-xs text-muted-foreground">
-          {rows.length} of {MAPPING.length} rows
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <span>{rows.length} of {MAPPING.length} rows</span>
+          <span className="font-mono text-[10.5px] uppercase tracking-wider">
+            schema <span className="text-foreground/80">v{SWMMX_SCHEMA_VERSION}</span>
+            <span className="mx-1.5 text-border">·</span>
+            spec <span className="text-foreground/80">{MAPPING_SPEC_REVISION}</span>
+          </span>
         </div>
         <div className="flex gap-2">
           <button
