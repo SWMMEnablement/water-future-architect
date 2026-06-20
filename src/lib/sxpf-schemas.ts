@@ -169,14 +169,16 @@ export type ArrowField = {
   notes?: string;
 };
 
-export const PARQUET_TABLES: Array<{
+export type ParquetTable = {
   name: string;
   purpose: string;
   partition: string[];
   sortWithinFile: string;
   fields: ArrowField[];
-}> = {
-  timeseries_node: {
+};
+
+export const PARQUET_LIST: ParquetTable[] = [
+  {
     name: "timeseries_node",
     purpose: "Long-format node timeseries — depth, head, inflow, flooding, …",
     partition: ["scenario_id", "variable", "ts_day"],
@@ -191,7 +193,7 @@ export const PARQUET_TABLES: Array<{
       { name: "quality", type: "uint8", notes: "bitfield: surcharged|flooded|dry|interpolated|assimilated" },
     ],
   },
-  summary: {
+  {
     name: "summary",
     purpose: "One row per (run, element) — peaks, totals, mass-balance.",
     partition: ["scenario_id"],
@@ -209,7 +211,7 @@ export const PARQUET_TABLES: Array<{
       { name: "mass_balance_error", type: "float64" },
     ],
   },
-  events: {
+  {
     name: "events",
     purpose: "Discrete events — floods, overflows, RTC firings, pump cycles.",
     partition: ["scenario_id"],
@@ -227,8 +229,4 @@ export const PARQUET_TABLES: Array<{
       { name: "attrs", type: "struct<…>", notes: "kind-specific extras" },
     ],
   },
-} as unknown as Array<{ name: string; purpose: string; partition: string[]; sortWithinFile: string; fields: ArrowField[] }>;
-// runtime-form: convert to array
-export const PARQUET_LIST = Object.values(PARQUET_TABLES as unknown as Record<string, {
-  name: string; purpose: string; partition: string[]; sortWithinFile: string; fields: ArrowField[];
-}>);
+];
