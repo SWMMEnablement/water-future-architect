@@ -33,6 +33,31 @@ function MappingPage() {
     });
   }, [q, kind]);
 
+  const download = (kind: "csv" | "json") => {
+    const stamp = new Date().toISOString().slice(0, 10);
+    let blob: Blob;
+    let filename: string;
+    if (kind === "json") {
+      blob = new Blob([JSON.stringify(rows, null, 2)], { type: "application/json" });
+      filename = `swmmx-inp-mapping-${stamp}.json`;
+    } else {
+      const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
+      const header = ["section", "target", "kind", "round_trip", "notes"];
+      const lines = [
+        header.join(","),
+        ...rows.map(r => [r.section, r.target, r.kind, r.roundTrip, r.notes].map(esc).join(",")),
+      ];
+      blob = new Blob([lines.join("\n")], { type: "text/csv" });
+      filename = `swmmx-inp-mapping-${stamp}.csv`;
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="max-w-5xl">
       <div className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Spec 1</div>
