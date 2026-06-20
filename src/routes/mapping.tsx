@@ -124,8 +124,13 @@ function MappingPage() {
       </div>
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-        <div className="text-xs text-muted-foreground">
-          {rows.length} of {MAPPING.length} rows
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <span>{rows.length} of {MAPPING.length} rows</span>
+          <span className="font-mono text-[10.5px] uppercase tracking-wider">
+            schema <span className="text-foreground/80">v{SWMMX_SCHEMA_VERSION}</span>
+            <span className="mx-1.5 text-border">·</span>
+            spec <span className="text-foreground/80">{MAPPING_SPEC_REVISION}</span>
+          </span>
         </div>
         <div className="flex gap-2">
           <button
