@@ -92,8 +92,24 @@ function MappingPage() {
         </div>
       </div>
 
-      <div className="mt-2 text-xs text-muted-foreground">
-        {rows.length} of {MAPPING.length} rows
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="text-xs text-muted-foreground">
+          {rows.length} of {MAPPING.length} rows
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => download("csv")}
+            className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-mono uppercase tracking-wider text-foreground/80 hover:bg-accent hover:text-foreground"
+          >
+            Download CSV
+          </button>
+          <button
+            onClick={() => download("json")}
+            className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-mono uppercase tracking-wider text-foreground/80 hover:bg-accent hover:text-foreground"
+          >
+            Download JSON
+          </button>
+        </div>
       </div>
 
       <div className="mt-4 overflow-hidden rounded-md border border-border">
