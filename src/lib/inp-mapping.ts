@@ -1,6 +1,13 @@
 export const SWMMX_SCHEMA_VERSION = "1.0.0";
-export const MAPPING_SPEC_REVISION = "2026-06-20.r3";
+export const MAPPING_SPEC_REVISION = "2026-06-20.r4";
 export const SWMMX_SOURCE_DIALECTS = ["SWMM5", "SWMM6"] as const;
+export type Dialect = (typeof SWMMX_SOURCE_DIALECTS)[number];
+
+// Provenance: identifies the exact build that produced an export.
+export const TOOL_NAME = "swmmx-mapping-export";
+export const TOOL_VERSION = "0.4.0";
+export const TOOL_COMMIT = "a1f3c92e";
+export const TOOL_BUILD_DATE = "2026-06-20";
 
 export type MappingRow = {
   section: string;
