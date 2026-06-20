@@ -15,7 +15,12 @@ export type MappingRow = {
   kind: "topology" | "forcings" | "scenarios" | "manifest" | "controls" | "quality" | "ui" | "passthrough";
   notes: string;
   roundTrip: "lossless" | "semantic" | "lossy";
+  /** Source dialects in which this section appears. Defaults to both. */
+  dialects?: Dialect[];
 };
+
+export const rowDialects = (r: MappingRow): Dialect[] =>
+  r.dialects ?? ["SWMM5", "SWMM6"];
 
 export const MAPPING: MappingRow[] = [
   { section: "[TITLE]", target: "manifest.project.name + notes", kind: "manifest", notes: "Multi-line preserved in notes", roundTrip: "lossless" },
