@@ -1,3 +1,7 @@
+export const SWMMX_SCHEMA_VERSION = "1.0.0";
+export const MAPPING_SPEC_REVISION = "2026-06-20.r3";
+export const SWMMX_SOURCE_DIALECTS = ["SWMM5", "SWMM6"] as const;
+
 export type MappingRow = {
   section: string;
   target: string;

@@ -1,6 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { MAPPING, KIND_COLOR, RT_COLOR, type MappingRow } from "../lib/inp-mapping";
+import {
+  MAPPING,
+  KIND_COLOR,
+  RT_COLOR,
+  SWMMX_SCHEMA_VERSION,
+  MAPPING_SPEC_REVISION,
+  SWMMX_SOURCE_DIALECTS,
+  type MappingRow,
+} from "../lib/inp-mapping";
 
 export const Route = createFileRoute("/mapping")({
   head: () => ({
