@@ -214,11 +214,11 @@ function ProvenanceCompare({ a, b }: { a: ExportFile; b: ExportFile }) {
           const va = String(pa[k] ?? "—"); const vb = String(pb[k] ?? "—");
           const differs = va !== vb;
           return (
-            <>
-              <div key={k + "-k"} className="font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground">{k}</div>
-              <div key={k + "-a"} className={`font-mono ${differs ? "text-rose-300/90" : "text-foreground/80"}`}>{va}</div>
-              <div key={k + "-b"} className={`font-mono ${differs ? "text-emerald-300/90" : "text-foreground/80"}`}>{vb}</div>
-            </>
+            <Fragment key={k}>
+              <div className="font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground">{k}</div>
+              <div className={`font-mono ${differs ? "text-rose-300/90" : "text-foreground/80"}`}>{va}</div>
+              <div className={`font-mono ${differs ? "text-emerald-300/90" : "text-foreground/80"}`}>{vb}</div>
+            </Fragment>
           );
         })}
       </div>
