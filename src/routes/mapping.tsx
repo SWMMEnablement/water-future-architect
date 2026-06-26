@@ -89,7 +89,24 @@ function MappingPage() {
   const download = (fmt: "csv" | "json") => {
     const meta = buildMetadata(fmt);
     const stamp = meta.exported_at.slice(0, 10);
-    const enriched = rows.map(r => ({ ...r, dialects: rowDialects(r) }));
+    const enriched = rows.map(r => {
+      const dialects = rowDialects(r);
+      return {
+        ...r,
+        dialects,
+        provenance: {
+          source_dialect: dialects.includes(inputDialect) ? inputDialect : dialects[0],
+          source_dialects: dialects,
+          original_inp_section: r.section,
+          tool: TOOL_NAME,
+          tool_version: TOOL_VERSION,
+          tool_commit: TOOL_COMMIT,
+          tool_build_date: TOOL_BUILD_DATE,
+          spec_revision: MAPPING_SPEC_REVISION,
+          schema_version: SWMMX_SCHEMA_VERSION,
+        },
+      };
+    });
     let blob: Blob;
     let filename: string;
     if (fmt === "json") {
@@ -111,17 +128,28 @@ function MappingPage() {
         `# filter_search=${q || ""} filter_kind=${kind} filter_dialect=${dialect}`,
         `# filter_sections=${selectedSections.size > 0 ? [...selectedSections].sort().join("|") : ""}`,
       ];
-      const header = ["section", "target", "kind", "round_trip", "dialects", "notes"];
+      const header = [
+        "section", "target", "kind", "round_trip", "dialects", "notes",
+        "prov_source_dialect", "prov_original_inp_section",
+        "prov_tool", "prov_tool_version", "prov_tool_commit", "prov_tool_build_date",
+        "prov_spec_revision", "prov_schema_version",
+      ];
       const lines = [
         ...metaLines,
         header.join(","),
         ...enriched.map(r =>
-          [r.section, r.target, r.kind, r.roundTrip, r.dialects.join("|"), r.notes].map(esc).join(","),
+          [
+            r.section, r.target, r.kind, r.roundTrip, r.dialects.join("|"), r.notes,
+            r.provenance.source_dialect, r.provenance.original_inp_section,
+            r.provenance.tool, r.provenance.tool_version, r.provenance.tool_commit, r.provenance.tool_build_date,
+            r.provenance.spec_revision, r.provenance.schema_version,
+          ].map(esc).join(","),
         ),
       ];
       blob = new Blob([lines.join("\n")], { type: "text/csv" });
       filename = `swmmx-inp-mapping-v${SWMMX_SCHEMA_VERSION}-${stamp}.csv`;
     }
+
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
