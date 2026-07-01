@@ -105,24 +105,11 @@ function MappingPage() {
   const download = (fmt: "csv" | "json") => {
     const meta = buildMetadata(fmt);
     const stamp = meta.exported_at.slice(0, 10);
-    const enriched = rows.map(r => {
-      const dialects = rowDialects(r);
-      return {
-        ...r,
-        dialects,
-        provenance: {
-          source_dialect: dialects.includes(inputDialect) ? inputDialect : dialects[0],
-          source_dialects: dialects,
-          original_inp_section: r.section,
-          tool: TOOL_NAME,
-          tool_version: TOOL_VERSION,
-          tool_commit: TOOL_COMMIT,
-          tool_build_date: TOOL_BUILD_DATE,
-          spec_revision: MAPPING_SPEC_REVISION,
-          schema_version: SWMMX_SCHEMA_VERSION,
-        },
-      };
-    });
+    const enriched = rows.map(r => ({
+      ...r,
+      dialects: rowDialects(r),
+      provenance: rowProvenance(r),
+    }));
     let blob: Blob;
     let filename: string;
     if (fmt === "json") {
