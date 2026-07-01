@@ -313,33 +313,56 @@ function MappingPage() {
               <th className="px-3 py-2 font-medium">Dialects</th>
               <th className="px-3 py-2 font-medium">Round-trip</th>
               <th className="px-3 py-2 font-medium">Notes</th>
+              <th className="px-3 py-2 font-medium">Provenance</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((r, i) => (
-              <tr key={r.section + i} className="border-t border-border align-top hover:bg-accent/30">
-                <td className="px-3 py-2.5 font-mono text-[12.5px] text-foreground">{r.section}</td>
-                <td className="px-3 py-2.5 font-mono text-[12.5px] text-foreground/80">{r.target}</td>
-                <td className="px-3 py-2.5">
-                  <span className={`inline-block rounded border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${KIND_COLOR[r.kind]}`}>
-                    {r.kind}
-                  </span>
-                </td>
-                <td className="px-3 py-2.5 font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground">
-                  {rowDialects(r).join(" · ")}
-                </td>
-                <td className={`px-3 py-2.5 font-mono text-[11px] uppercase tracking-wider ${RT_COLOR[r.roundTrip]}`}>
-                  {r.roundTrip}
-                </td>
-                <td className="px-3 py-2.5 text-[13px] text-muted-foreground">{r.notes || "—"}</td>
-              </tr>
-            ))}
+            {rows.map((r, i) => {
+              const prov = rowProvenance(r);
+              return (
+                <tr key={r.section + i} className="border-t border-border align-top hover:bg-accent/30">
+                  <td className="px-3 py-2.5 font-mono text-[12.5px] text-foreground">{r.section}</td>
+                  <td className="px-3 py-2.5 font-mono text-[12.5px] text-foreground/80">{r.target}</td>
+                  <td className="px-3 py-2.5">
+                    <span className={`inline-block rounded border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${KIND_COLOR[r.kind]}`}>
+                      {r.kind}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2.5 font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground">
+                    {rowDialects(r).join(" · ")}
+                  </td>
+                  <td className={`px-3 py-2.5 font-mono text-[11px] uppercase tracking-wider ${RT_COLOR[r.roundTrip]}`}>
+                    {r.roundTrip}
+                  </td>
+                  <td className="px-3 py-2.5 text-[13px] text-muted-foreground">{r.notes || "—"}</td>
+                  <td className="px-3 py-2.5">
+                    <button
+                      onClick={() => setDrawerRow(r)}
+                      className="flex flex-col items-start gap-0.5 rounded border border-border bg-card px-2 py-1 text-left font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground hover:border-foreground/40 hover:text-foreground"
+                      title="View provenance"
+                    >
+                      <span className="text-foreground/80">{prov.source_dialect}</span>
+                      <span>{TOOL_NAME}@{TOOL_VERSION}</span>
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
             {rows.length === 0 && (
-              <tr><td colSpan={6} className="px-3 py-10 text-center text-sm text-muted-foreground">No rows match.</td></tr>
+              <tr><td colSpan={7} className="px-3 py-10 text-center text-sm text-muted-foreground">No rows match.</td></tr>
             )}
           </tbody>
         </table>
       </div>
+
+      {drawerRow && (
+        <ProvenanceDrawer
+          row={drawerRow}
+          prov={rowProvenance(drawerRow)}
+          onClose={() => setDrawerRow(null)}
+        />
+      )}
+
 
       <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Legend color="text-emerald-400" label="lossless" desc="Bit-identical re-export of mapped content." />
