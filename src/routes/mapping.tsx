@@ -39,6 +39,22 @@ function MappingPage() {
   const [inputDialect, setInputDialect] = useState<Dialect>("SWMM5");
   const [selectedSections, setSelectedSections] = useState<Set<string>>(new Set());
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [drawerRow, setDrawerRow] = useState<MappingRow | null>(null);
+
+  const rowProvenance = (r: MappingRow) => {
+    const dialects = rowDialects(r);
+    return {
+      source_dialect: dialects.includes(inputDialect) ? inputDialect : dialects[0],
+      source_dialects: dialects,
+      original_inp_section: r.section,
+      tool: TOOL_NAME,
+      tool_version: TOOL_VERSION,
+      tool_commit: TOOL_COMMIT,
+      tool_build_date: TOOL_BUILD_DATE,
+      spec_revision: MAPPING_SPEC_REVISION,
+      schema_version: SWMMX_SCHEMA_VERSION,
+    };
+  };
 
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase();
