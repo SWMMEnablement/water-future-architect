@@ -1,6 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Fragment, useMemo, useState } from "react";
-import { KIND_COLOR, RT_COLOR, type MappingRow } from "../lib/inp-mapping";
+import {
+  KIND_COLOR,
+  RT_COLOR,
+  SWMMX_SCHEMA_VERSION,
+  MAPPING_SPEC_REVISION,
+  TOOL_NAME,
+  TOOL_VERSION,
+  TOOL_COMMIT,
+  TOOL_BUILD_DATE,
+  type MappingRow,
+} from "../lib/inp-mapping";
 
 export const Route = createFileRoute("/diff")({
   head: () => ({
