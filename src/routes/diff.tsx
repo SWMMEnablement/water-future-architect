@@ -56,6 +56,53 @@ const REASON_LABEL: Record<string, { label: string; color: string }> = {
   "provenance:tool_version": { label: "prov · tool version", color: "border-fuchsia-500/40 bg-fuchsia-500/10 text-fuchsia-300" },
 };
 
+const REQUIRED_PROV_FIELDS = [
+  "source_dialect", "original_inp_section",
+  "tool", "tool_version", "tool_commit", "tool_build_date",
+  "spec_revision", "schema_version",
+] as const;
+
+type ProvIssue = { field: string; message: string };
+type RowValidation = { section: string; ok: boolean; issues: ProvIssue[] };
+type ExportValidation = { rows: Map<string, RowValidation>; failing: RowValidation[]; ok: boolean };
+
+function validateExport(file: ExportFile): ExportValidation {
+  const rows = new Map<string, RowValidation>();
+  const failing: RowValidation[] = [];
+  const declaredDialects = new Set(
+    Array.isArray(file.metadata?.source_dialects) ? (file.metadata!.source_dialects as string[]) : [],
+  );
+  for (const r of file.rows) {
+    const issues: ProvIssue[] = [];
+    const p = r.provenance;
+    if (!p) {
+      issues.push({ field: "provenance", message: "row is missing provenance block" });
+    } else {
+      for (const f of REQUIRED_PROV_FIELDS) {
+        const v = (p as Record<string, unknown>)[f];
+        if (v === undefined || v === null || v === "") {
+          issues.push({ field: `provenance.${f}`, message: "required field is missing or empty" });
+        }
+      }
+      if (p.original_inp_section && p.original_inp_section !== r.section) {
+        issues.push({ field: "provenance.original_inp_section", message: `expected "${r.section}" but got "${p.original_inp_section}"` });
+      }
+      const rowDialects = r.dialects ?? p.source_dialects ?? ["SWMM5", "SWMM6"];
+      if (p.source_dialect && !rowDialects.includes(p.source_dialect)) {
+        issues.push({ field: "provenance.source_dialect", message: `"${p.source_dialect}" is not one of the row's dialects (${rowDialects.join(", ")})` });
+      }
+      if (declaredDialects.size > 0 && p.source_dialect && !declaredDialects.has(p.source_dialect)) {
+        issues.push({ field: "provenance.source_dialect", message: `"${p.source_dialect}" is not in file's source_dialects (${[...declaredDialects].join(", ")})` });
+      }
+    }
+    const rv: RowValidation = { section: r.section, ok: issues.length === 0, issues };
+    rows.set(r.section, rv);
+    if (!rv.ok) failing.push(rv);
+  }
+  return { rows, failing, ok: failing.length === 0 };
+}
+
+
 function DiffPage() {
   const [a, setA] = useState<ExportFile | null>(null);
   const [b, setB] = useState<ExportFile | null>(null);
@@ -80,6 +127,18 @@ function DiffPage() {
     }
   };
 
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggleExpanded = (s: string) => setExpanded(prev => {
+    const n = new Set(prev); n.has(s) ? n.delete(s) : n.add(s); return n;
+  });
+
+  const validation = useMemo(() => {
+    return {
+      a: a ? validateExport(a) : null,
+      b: b ? validateExport(b) : null,
+    };
+  }, [a, b]);
+
   const diff = useMemo(() => {
     if (!a || !b) return null;
     const ma = new Map(a.rows.map(r => [r.section, r]));
@@ -87,7 +146,7 @@ function DiffPage() {
     const sections = new Set<string>([...ma.keys(), ...mb.keys()]);
     const added: string[] = [];
     const removed: string[] = [];
-    const changed: Array<{ section: string; fields: Array<{ field: string; reason: string; a: string; b: string }>; reasons: Set<string> }> = [];
+    const changed: Array<{ section: string; fields: Array<{ field: string; reason: string; a: string; b: string }>; reasons: Set<string>; aRow: ExportRow; bRow: ExportRow }> = [];
     const unchanged: string[] = [];
     for (const s of [...sections].sort()) {
       const ra = ma.get(s); const rb = mb.get(s);
@@ -101,11 +160,12 @@ function DiffPage() {
           if (va !== vb) { fields.push({ field: spec.label, reason: spec.reason, a: va, b: vb }); reasons.add(spec.reason); }
         }
         if (fields.length === 0) unchanged.push(s);
-        else changed.push({ section: s, fields, reasons });
+        else changed.push({ section: s, fields, reasons, aRow: ra, bRow: rb });
       }
     }
     return { added, removed, changed, unchanged };
   }, [a, b]);
+
 
 
   return (
@@ -127,6 +187,14 @@ function DiffPage() {
         <ProvenanceCompare a={a} b={b} />
       )}
 
+      {(validation.a || validation.b) && (
+        <ValidationSummary a={validation.a} b={validation.b} />
+      )}
+
+      {(validation.a?.failing.length || validation.b?.failing.length) ? (
+        <FailingRowsPanel a={validation.a} b={validation.b} />
+      ) : null}
+
       {diff && (
         <div className="mt-8 space-y-6">
           <SummaryBar
@@ -139,43 +207,66 @@ function DiffPage() {
           />
 
           <DiffSection title="Added" tone="emerald" empty="No new sections.">
-            {diff.added.map(s => (
-              <RowLine key={s} section={s} row={b!.rows.find(r => r.section === s)!} />
-            ))}
+            {diff.added.map(s => {
+              const row = b!.rows.find(r => r.section === s)!;
+              const v = validation.b?.rows.get(s);
+              return <RowLine key={s} section={s} row={row} validations={{ b: v }} />;
+            })}
           </DiffSection>
 
           <DiffSection title="Removed" tone="rose" empty="No removed sections.">
-            {diff.removed.map(s => (
-              <RowLine key={s} section={s} row={a!.rows.find(r => r.section === s)!} />
-            ))}
+            {diff.removed.map(s => {
+              const row = a!.rows.find(r => r.section === s)!;
+              const v = validation.a?.rows.get(s);
+              return <RowLine key={s} section={s} row={row} validations={{ a: v }} />;
+            })}
           </DiffSection>
 
           <DiffSection title="Changed" tone="amber" empty="No field-level changes.">
-            {diff.changed.map(c => (
-              <div key={c.section} className="rounded-md border border-border bg-card p-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="font-mono text-[12.5px] text-foreground">{c.section}</div>
-                  <div className="flex flex-wrap gap-1">
-                    {[...c.reasons].map(r => (
-                      <span key={r} className={`rounded border px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-wider ${REASON_LABEL[r]?.color ?? ""}`}>
-                        {REASON_LABEL[r]?.label ?? r}
-                      </span>
+            {diff.changed.map(c => {
+              const va = validation.a?.rows.get(c.section);
+              const vb = validation.b?.rows.get(c.section);
+              const isOpen = expanded.has(c.section);
+              const hasProvChange = [...c.reasons].some(r => r.startsWith("provenance:"));
+              return (
+                <div key={c.section} className="rounded-md border border-border bg-card p-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="font-mono text-[12.5px] text-foreground">{c.section}</div>
+                    <div className="flex flex-wrap gap-1">
+                      {[...c.reasons].map(r => (
+                        <span key={r} className={`rounded border px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-wider ${REASON_LABEL[r]?.color ?? ""}`}>
+                          {REASON_LABEL[r]?.label ?? r}
+                        </span>
+                      ))}
+                      <ValidityBadge side="A" v={va} />
+                      <ValidityBadge side="B" v={vb} />
+                    </div>
+                    {hasProvChange && (
+                      <button
+                        onClick={() => toggleExpanded(c.section)}
+                        className="ml-auto rounded border border-border bg-background px-2 py-0.5 text-[10.5px] font-mono uppercase tracking-wider text-muted-foreground hover:text-foreground"
+                      >
+                        {isOpen ? "hide provenance" : "show provenance"}
+                      </button>
+                    )}
+                  </div>
+                  <div className="mt-2 space-y-1.5">
+                    {c.fields.map(f => (
+                      <div key={f.field} className="grid grid-cols-[150px_1fr] gap-3 text-[12.5px]">
+                        <div className="font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground">{f.field}</div>
+                        <div className="space-y-0.5">
+                          <div className="font-mono text-rose-300/90">- {f.a || <em className="not-italic text-muted-foreground">∅</em>}</div>
+                          <div className="font-mono text-emerald-300/90">+ {f.b || <em className="not-italic text-muted-foreground">∅</em>}</div>
+                        </div>
+                      </div>
                     ))}
                   </div>
+                  {isOpen && (
+                    <ProvenanceDrilldown aRow={c.aRow} bRow={c.bRow} reasons={c.reasons} va={va} vb={vb} />
+                  )}
                 </div>
-                <div className="mt-2 space-y-1.5">
-                  {c.fields.map(f => (
-                    <div key={f.field} className="grid grid-cols-[150px_1fr] gap-3 text-[12.5px]">
-                      <div className="font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground">{f.field}</div>
-                      <div className="space-y-0.5">
-                        <div className="font-mono text-rose-300/90">- {f.a || <em className="not-italic text-muted-foreground">∅</em>}</div>
-                        <div className="font-mono text-emerald-300/90">+ {f.b || <em className="not-italic text-muted-foreground">∅</em>}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </DiffSection>
 
         </div>
@@ -183,6 +274,164 @@ function DiffPage() {
     </div>
   );
 }
+
+function ValidityBadge({ side, v }: { side: string; v?: RowValidation }) {
+  if (!v) return null;
+  const ok = v.ok;
+  return (
+    <span
+      title={ok ? "provenance validated" : v.issues.map(i => `${i.field}: ${i.message}`).join("\n")}
+      className={`rounded border px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-wider ${
+        ok
+          ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+          : "border-rose-500/40 bg-rose-500/10 text-rose-300"
+      }`}
+    >
+      {side} · {ok ? "prov ok" : `prov ✗ ${v.issues.length}`}
+    </span>
+  );
+}
+
+function ValidationSummary({ a, b }: { a: ExportValidation | null; b: ExportValidation | null }) {
+  const cell = (side: string, v: ExportValidation | null) => {
+    if (!v) return (
+      <div className="rounded-md border border-border bg-card p-3">
+        <div className="font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground">{side}</div>
+        <div className="mt-1 text-xs text-muted-foreground">no file loaded</div>
+      </div>
+    );
+    const total = v.rows.size;
+    const failing = v.failing.length;
+    const tone = v.ok ? "border-emerald-500/40 bg-emerald-500/5" : "border-rose-500/40 bg-rose-500/5";
+    const color = v.ok ? "text-emerald-300" : "text-rose-300";
+    return (
+      <div className={`rounded-md border p-3 ${tone}`}>
+        <div className="font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground">{side} · provenance validation</div>
+        <div className={`mt-1 font-mono text-[11.5px] uppercase tracking-wider ${color}`}>
+          {v.ok ? `${total} rows passed` : `${failing} of ${total} rows failed`}
+        </div>
+      </div>
+    );
+  };
+  return (
+    <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+      {cell("A · base", a)}
+      {cell("B · candidate", b)}
+    </div>
+  );
+}
+
+function FailingRowsPanel({ a, b }: { a: ExportValidation | null; b: ExportValidation | null }) {
+  const merge = () => {
+    const sections = new Set<string>([
+      ...(a?.failing ?? []).map(r => r.section),
+      ...(b?.failing ?? []).map(r => r.section),
+    ]);
+    return [...sections].sort().map(s => ({
+      section: s,
+      a: a?.rows.get(s),
+      b: b?.rows.get(s),
+    }));
+  };
+  const list = merge();
+  if (list.length === 0) return null;
+  return (
+    <div className="mt-4 rounded-md border border-rose-500/40 bg-rose-500/5 p-3">
+      <div className="flex items-center justify-between">
+        <div className="font-mono text-[10.5px] uppercase tracking-wider text-rose-300">Failing provenance rows</div>
+        <div className="font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground">{list.length} sections</div>
+      </div>
+      <div className="mt-3 space-y-2">
+        {list.map(({ section, a: va, b: vb }) => (
+          <div key={section} className="rounded border border-border bg-card p-2.5">
+            <div className="font-mono text-[12.5px] text-foreground">{section}</div>
+            <div className="mt-1.5 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <FailingSide label="A" v={va} />
+              <FailingSide label="B" v={vb} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FailingSide({ label, v }: { label: string; v?: RowValidation }) {
+  if (!v) return (
+    <div className="rounded border border-border/60 bg-background p-2">
+      <div className="font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="mt-1 text-[12px] text-muted-foreground">row not present</div>
+    </div>
+  );
+  if (v.ok) return (
+    <div className="rounded border border-emerald-500/30 bg-emerald-500/5 p-2">
+      <div className="font-mono text-[10.5px] uppercase tracking-wider text-emerald-300">{label} · passed</div>
+    </div>
+  );
+  return (
+    <div className="rounded border border-rose-500/30 bg-rose-500/5 p-2">
+      <div className="font-mono text-[10.5px] uppercase tracking-wider text-rose-300">{label} · {v.issues.length} issue(s)</div>
+      <ul className="mt-1 space-y-0.5 text-[12px]">
+        {v.issues.map((i, idx) => (
+          <li key={idx}>
+            <span className="font-mono text-foreground/80">{i.field}</span>{" "}
+            <span className="text-muted-foreground">— {i.message}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function ProvenanceDrilldown({
+  aRow, bRow, reasons, va, vb,
+}: {
+  aRow: ExportRow; bRow: ExportRow; reasons: Set<string>;
+  va?: RowValidation; vb?: RowValidation;
+}) {
+  const highlightFields: string[] = [];
+  if (reasons.has("provenance:dialect")) highlightFields.push("source_dialect");
+  if (reasons.has("provenance:inp_section")) highlightFields.push("original_inp_section");
+  if (reasons.has("provenance:tool_version")) highlightFields.push("tool", "tool_version");
+  const pa = (aRow.provenance ?? {}) as Record<string, unknown>;
+  const pb = (bRow.provenance ?? {}) as Record<string, unknown>;
+  const keys = Array.from(new Set([...Object.keys(pa), ...Object.keys(pb), ...highlightFields])).sort();
+  return (
+    <div className="mt-3 rounded border border-border bg-background/60 p-3">
+      <div className="font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground">
+        Provenance drilldown · highlighting: {highlightFields.length ? highlightFields.join(", ") : "—"}
+      </div>
+      <div className="mt-2 grid grid-cols-[160px_1fr_1fr] gap-x-3 gap-y-1 text-[12px]">
+        <div />
+        <div className="font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground">A · {va?.ok === false ? "prov ✗" : "prov ok"}</div>
+        <div className="font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground">B · {vb?.ok === false ? "prov ✗" : "prov ok"}</div>
+        {keys.map(k => {
+          const va2 = pa[k]; const vb2 = pb[k];
+          const va2s = va2 === undefined ? "∅" : Array.isArray(va2) ? va2.join("|") : String(va2);
+          const vb2s = vb2 === undefined ? "∅" : Array.isArray(vb2) ? vb2.join("|") : String(vb2);
+          const differs = va2s !== vb2s;
+          const highlighted = highlightFields.includes(k);
+          return (
+            <Fragment key={k}>
+              <div className={`font-mono text-[10.5px] uppercase tracking-wider ${highlighted ? "text-foreground" : "text-muted-foreground"}`}>{k}</div>
+              <div className={`font-mono ${differs ? "text-rose-300/90" : "text-foreground/80"} ${highlighted ? "bg-rose-500/5 rounded px-1" : ""}`}>{va2s}</div>
+              <div className={`font-mono ${differs ? "text-emerald-300/90" : "text-foreground/80"} ${highlighted ? "bg-emerald-500/5 rounded px-1" : ""}`}>{vb2s}</div>
+            </Fragment>
+          );
+        })}
+      </div>
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <pre className="max-h-64 overflow-auto rounded border border-border bg-muted/20 p-2 font-mono text-[11px] leading-relaxed text-muted-foreground">
+{JSON.stringify(aRow.provenance ?? {}, null, 2)}
+        </pre>
+        <pre className="max-h-64 overflow-auto rounded border border-border bg-muted/20 p-2 font-mono text-[11px] leading-relaxed text-muted-foreground">
+{JSON.stringify(bRow.provenance ?? {}, null, 2)}
+        </pre>
+      </div>
+    </div>
+  );
+}
+
 
 function FilePane({
   side, label, file, err, onFile,
@@ -295,7 +544,12 @@ function DiffSection({
   );
 }
 
-function RowLine({ section, row }: { section: string; row: ExportRow }) {
+function RowLine({
+  section, row, validations,
+}: {
+  section: string; row: ExportRow;
+  validations?: { a?: RowValidation; b?: RowValidation };
+}) {
   const kind = row.kind as MappingRow["kind"];
   const rt = row.roundTrip as MappingRow["roundTrip"];
   return (
@@ -304,6 +558,9 @@ function RowLine({ section, row }: { section: string; row: ExportRow }) {
       <span className="font-mono text-foreground/70">→ {row.target}</span>
       <span className={`rounded border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${KIND_COLOR[kind]}`}>{kind}</span>
       <span className={`font-mono text-[10.5px] uppercase tracking-wider ${RT_COLOR[rt]}`}>{rt}</span>
+      {validations?.a && <ValidityBadge side="A" v={validations.a} />}
+      {validations?.b && <ValidityBadge side="B" v={validations.b} />}
     </div>
   );
 }
+
