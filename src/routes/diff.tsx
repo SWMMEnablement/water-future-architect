@@ -246,6 +246,17 @@ function DiffPage() {
         <ValidationSummary a={validation.a} b={validation.b} />
       )}
 
+      {(validation.a || validation.b) && (
+        <div className="mt-3 flex justify-end">
+          <button
+            onClick={() => downloadValidationCSV(a, b, validation)}
+            className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-mono uppercase tracking-wider text-foreground/80 hover:bg-accent hover:text-foreground"
+          >
+            Download validation CSV
+          </button>
+        </div>
+      )}
+
       {(validation.a?.failing.length || validation.b?.failing.length) ? (
         <FailingRowsPanel a={validation.a} b={validation.b} />
       ) : null}
