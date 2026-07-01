@@ -472,6 +472,70 @@ function MappingPage() {
   );
 }
 
+function ValidationPanel({
+  result,
+  pending,
+  onDismiss,
+  onForce,
+}: {
+  result: { checkedRows: number; issues: Array<{ level: "error" | "warning"; section: string; field: string; message: string }>; ok: boolean };
+  pending: "csv" | "json" | null;
+  onDismiss: () => void;
+  onForce: () => void;
+}) {
+  const errors = result.issues.filter(i => i.level === "error");
+  const warnings = result.issues.filter(i => i.level === "warning");
+  const tone = !result.ok
+    ? "border-rose-500/40 bg-rose-500/5"
+    : warnings.length > 0
+      ? "border-amber-500/40 bg-amber-500/5"
+      : "border-emerald-500/40 bg-emerald-500/5";
+  const label = !result.ok ? "failed" : warnings.length > 0 ? "passed with warnings" : "passed";
+  const labelColor = !result.ok ? "text-rose-300" : warnings.length > 0 ? "text-amber-300" : "text-emerald-300";
+  return (
+    <div className={`mt-4 rounded-md border p-3 ${tone}`}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <span className={`font-mono text-[10.5px] uppercase tracking-wider ${labelColor}`}>validation · {label}</span>
+          <span className="text-muted-foreground">{result.checkedRows} rows · {errors.length} errors · {warnings.length} warnings</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {pending && (
+            <button
+              onClick={onForce}
+              className="rounded-md border border-rose-500/40 bg-rose-500/10 px-2.5 py-1 text-[11px] font-mono uppercase tracking-wider text-rose-200 hover:bg-rose-500/20"
+            >
+              Export {pending} anyway
+            </button>
+          )}
+          <button
+            onClick={onDismiss}
+            className="rounded-md border border-border bg-card px-2.5 py-1 text-[11px] font-mono uppercase tracking-wider text-muted-foreground hover:text-foreground"
+          >
+            dismiss
+          </button>
+        </div>
+      </div>
+      {result.issues.length > 0 && (
+        <ul className="mt-3 max-h-56 space-y-1 overflow-y-auto pr-1">
+          {result.issues.map((i, idx) => (
+            <li key={idx} className="grid grid-cols-[70px_140px_1fr] gap-2 text-[12px]">
+              <span className={`font-mono text-[10px] uppercase tracking-wider ${i.level === "error" ? "text-rose-300" : "text-amber-300"}`}>
+                {i.level}
+              </span>
+              <span className="font-mono text-foreground/80">{i.section}</span>
+              <span className="text-muted-foreground">
+                <span className="font-mono text-foreground/70">{i.field}</span> — {i.message}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+
 function Legend({ color, label, desc }: { color: string; label: string; desc: string }) {
   return (
     <div className="rounded-md border border-border bg-card p-3">
