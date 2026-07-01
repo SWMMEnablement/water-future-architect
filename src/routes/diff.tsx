@@ -127,30 +127,6 @@ function DiffPage() {
     }
   };
 
-  const diff = useMemo(() => {
-    if (!a || !b) return null;
-    const ma = new Map(a.rows.map(r => [r.section, r]));
-    const mb = new Map(b.rows.map(r => [r.section, r]));
-    const sections = new Set<string>([...ma.keys(), ...mb.keys()]);
-    const added: string[] = [];
-    const removed: string[] = [];
-    const changed: Array<{ section: string; fields: Array<{ field: string; reason: string; a: string; b: string }>; reasons: Set<string> }> = [];
-    const unchanged: string[] = [];
-    for (const s of [...sections].sort()) {
-      const ra = ma.get(s); const rb = mb.get(s);
-      if (!ra && rb) { added.push(s); continue; }
-      if (ra && !rb) { removed.push(s); continue; }
-      if (ra && rb) {
-        const fields: Array<{ field: string; reason: string; a: string; b: string }> = [];
-        const reasons = new Set<string>();
-        for (const spec of FIELD_SPECS) {
-          const va = spec.get(ra); const vb = spec.get(rb);
-          if (va !== vb) { fields.push({ field: spec.label, reason: spec.reason, a: va, b: vb }); reasons.add(spec.reason); }
-        }
-        if (fields.length === 0) unchanged.push(s);
-        else changed.push({ section: s, fields, reasons });
-      }
-    }
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggleExpanded = (s: string) => setExpanded(prev => {
     const n = new Set(prev); n.has(s) ? n.delete(s) : n.add(s); return n;
