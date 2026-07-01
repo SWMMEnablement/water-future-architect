@@ -102,7 +102,74 @@ function MappingPage() {
     },
   });
 
-  const download = (fmt: "csv" | "json") => {
+  const REQUIRED_PROV_FIELDS = [
+    "source_dialect", "original_inp_section",
+    "tool", "tool_version", "tool_commit", "tool_build_date",
+    "spec_revision", "schema_version",
+  ] as const;
+
+  type ValidationIssue = { level: "error" | "warning"; section: string; field: string; message: string };
+  type ValidationResult = { checkedRows: number; issues: ValidationIssue[]; ok: boolean };
+
+  const validateEnriched = (
+    enriched: Array<MappingRow & { dialects: Dialect[]; provenance: ReturnType<typeof rowProvenance> }>,
+  ): ValidationResult => {
+    const issues: ValidationIssue[] = [];
+    const sectionsFilter = selectedSections.size > 0 ? selectedSections : null;
+    for (const r of enriched) {
+      const p = r.provenance as Record<string, unknown> | undefined;
+      if (!p) {
+        issues.push({ level: "error", section: r.section, field: "provenance", message: "row is missing provenance block" });
+        continue;
+      }
+      for (const f of REQUIRED_PROV_FIELDS) {
+        const v = p[f];
+        if (v === undefined || v === null || v === "") {
+          issues.push({ level: "error", section: r.section, field: `provenance.${f}`, message: "required provenance field is missing or empty" });
+        }
+      }
+      if (p.original_inp_section !== r.section) {
+        issues.push({ level: "error", section: r.section, field: "provenance.original_inp_section", message: `expected "${r.section}" but got "${String(p.original_inp_section)}"` });
+      }
+      const sd = String(p.source_dialect ?? "");
+      if (sd && !r.dialects.includes(sd as Dialect)) {
+        issues.push({ level: "error", section: r.section, field: "provenance.source_dialect", message: `"${sd}" is not one of the row's dialects (${r.dialects.join(", ")})` });
+      }
+      if (dialect !== "all" && sd && sd !== dialect && r.dialects.includes(dialect)) {
+        issues.push({ level: "warning", section: r.section, field: "provenance.source_dialect", message: `dialect filter is "${dialect}" but row provenance uses "${sd}"` });
+      }
+      if (sectionsFilter && !sectionsFilter.has(r.section)) {
+        issues.push({ level: "error", section: r.section, field: "section", message: "row is outside the selected sections filter" });
+      }
+      if (p.tool !== TOOL_NAME || p.tool_version !== TOOL_VERSION) {
+        issues.push({ level: "warning", section: r.section, field: "provenance.tool_version", message: `tool ${String(p.tool)}@${String(p.tool_version)} differs from build ${TOOL_NAME}@${TOOL_VERSION}` });
+      }
+      if (p.spec_revision !== MAPPING_SPEC_REVISION || p.schema_version !== SWMMX_SCHEMA_VERSION) {
+        issues.push({ level: "warning", section: r.section, field: "provenance.spec_revision", message: `row references spec ${String(p.spec_revision)} / schema v${String(p.schema_version)}` });
+      }
+    }
+    return {
+      checkedRows: enriched.length,
+      issues,
+      ok: issues.every(i => i.level !== "error"),
+    };
+  };
+
+  const [validation, setValidation] = useState<ValidationResult | null>(null);
+  const [pendingExport, setPendingExport] = useState<"csv" | "json" | null>(null);
+
+  const runValidation = () => {
+    const enriched = rows.map(r => ({
+      ...r,
+      dialects: rowDialects(r),
+      provenance: rowProvenance(r),
+    }));
+    const result = validateEnriched(enriched);
+    setValidation(result);
+    return result;
+  };
+
+  const doDownload = (fmt: "csv" | "json") => {
     const meta = buildMetadata(fmt);
     const stamp = meta.exported_at.slice(0, 10);
     const enriched = rows.map(r => ({
@@ -160,6 +227,22 @@ function MappingPage() {
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  const download = (fmt: "csv" | "json") => {
+    const result = runValidation();
+    if (!result.ok) {
+      setPendingExport(fmt);
+      return;
+    }
+    setPendingExport(null);
+    doDownload(fmt);
+  };
+
+  const forceDownload = () => {
+    if (pendingExport) doDownload(pendingExport);
+    setPendingExport(null);
+  };
+
 
   return (
     <div className="max-w-5xl">
@@ -289,6 +372,12 @@ function MappingPage() {
             </select>
           </label>
           <button
+            onClick={runValidation}
+            className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-mono uppercase tracking-wider text-foreground/80 hover:bg-accent hover:text-foreground"
+          >
+            Validate
+          </button>
+          <button
             onClick={() => download("csv")}
             className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-mono uppercase tracking-wider text-foreground/80 hover:bg-accent hover:text-foreground"
           >
@@ -302,6 +391,16 @@ function MappingPage() {
           </button>
         </div>
       </div>
+
+      {validation && (
+        <ValidationPanel
+          result={validation}
+          pending={pendingExport}
+          onDismiss={() => { setValidation(null); setPendingExport(null); }}
+          onForce={forceDownload}
+        />
+      )}
+
 
       <div className="mt-4 overflow-hidden rounded-md border border-border">
         <table className="w-full border-collapse text-sm">
@@ -372,6 +471,70 @@ function MappingPage() {
     </div>
   );
 }
+
+function ValidationPanel({
+  result,
+  pending,
+  onDismiss,
+  onForce,
+}: {
+  result: { checkedRows: number; issues: Array<{ level: "error" | "warning"; section: string; field: string; message: string }>; ok: boolean };
+  pending: "csv" | "json" | null;
+  onDismiss: () => void;
+  onForce: () => void;
+}) {
+  const errors = result.issues.filter(i => i.level === "error");
+  const warnings = result.issues.filter(i => i.level === "warning");
+  const tone = !result.ok
+    ? "border-rose-500/40 bg-rose-500/5"
+    : warnings.length > 0
+      ? "border-amber-500/40 bg-amber-500/5"
+      : "border-emerald-500/40 bg-emerald-500/5";
+  const label = !result.ok ? "failed" : warnings.length > 0 ? "passed with warnings" : "passed";
+  const labelColor = !result.ok ? "text-rose-300" : warnings.length > 0 ? "text-amber-300" : "text-emerald-300";
+  return (
+    <div className={`mt-4 rounded-md border p-3 ${tone}`}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <span className={`font-mono text-[10.5px] uppercase tracking-wider ${labelColor}`}>validation · {label}</span>
+          <span className="text-muted-foreground">{result.checkedRows} rows · {errors.length} errors · {warnings.length} warnings</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {pending && (
+            <button
+              onClick={onForce}
+              className="rounded-md border border-rose-500/40 bg-rose-500/10 px-2.5 py-1 text-[11px] font-mono uppercase tracking-wider text-rose-200 hover:bg-rose-500/20"
+            >
+              Export {pending} anyway
+            </button>
+          )}
+          <button
+            onClick={onDismiss}
+            className="rounded-md border border-border bg-card px-2.5 py-1 text-[11px] font-mono uppercase tracking-wider text-muted-foreground hover:text-foreground"
+          >
+            dismiss
+          </button>
+        </div>
+      </div>
+      {result.issues.length > 0 && (
+        <ul className="mt-3 max-h-56 space-y-1 overflow-y-auto pr-1">
+          {result.issues.map((i, idx) => (
+            <li key={idx} className="grid grid-cols-[70px_140px_1fr] gap-2 text-[12px]">
+              <span className={`font-mono text-[10px] uppercase tracking-wider ${i.level === "error" ? "text-rose-300" : "text-amber-300"}`}>
+                {i.level}
+              </span>
+              <span className="font-mono text-foreground/80">{i.section}</span>
+              <span className="text-muted-foreground">
+                <span className="font-mono text-foreground/70">{i.field}</span> — {i.message}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 
 function Legend({ color, label, desc }: { color: string; label: string; desc: string }) {
   return (
