@@ -12,7 +12,18 @@ export const Route = createFileRoute("/diff")({
   component: DiffPage,
 });
 
-type ExportRow = MappingRow & { dialects?: string[] };
+type Provenance = {
+  source_dialect?: string;
+  source_dialects?: string[];
+  original_inp_section?: string;
+  tool?: string;
+  tool_version?: string;
+  tool_commit?: string;
+  tool_build_date?: string;
+  spec_revision?: string;
+  schema_version?: string;
+};
+type ExportRow = MappingRow & { dialects?: string[]; provenance?: Provenance };
 type ExportFile = {
   metadata?: Record<string, unknown> & {
     swmmx_schema_version?: string;
@@ -25,18 +36,25 @@ type ExportFile = {
 
 type Side = "a" | "b";
 
-const COMPARED_FIELDS: Array<keyof ExportRow> = ["target", "kind", "roundTrip", "notes", "dialects"];
+type FieldSpec = { key: string; label: string; reason: string; get: (r: ExportRow) => string };
 
-function normalize(r: ExportRow) {
-  return {
-    section: r.section,
-    target: r.target,
-    kind: r.kind,
-    roundTrip: r.roundTrip,
-    notes: r.notes ?? "",
-    dialects: (r.dialects ?? ["SWMM5", "SWMM6"]).slice().sort().join("|"),
-  };
-}
+const FIELD_SPECS: FieldSpec[] = [
+  { key: "target", label: "target", reason: "mapping", get: r => String(r.target ?? "") },
+  { key: "kind", label: "kind", reason: "mapping", get: r => String(r.kind ?? "") },
+  { key: "roundTrip", label: "round-trip", reason: "mapping", get: r => String(r.roundTrip ?? "") },
+  { key: "notes", label: "notes", reason: "mapping", get: r => String(r.notes ?? "") },
+  { key: "dialects", label: "dialects", reason: "mapping", get: r => (r.dialects ?? ["SWMM5", "SWMM6"]).slice().sort().join("|") },
+  { key: "prov.source_dialect", label: "prov · dialect", reason: "provenance:dialect", get: r => String(r.provenance?.source_dialect ?? "") },
+  { key: "prov.original_inp_section", label: "prov · .inp section", reason: "provenance:inp_section", get: r => String(r.provenance?.original_inp_section ?? "") },
+  { key: "prov.tool_version", label: "prov · tool version", reason: "provenance:tool_version", get: r => `${r.provenance?.tool ?? ""}@${r.provenance?.tool_version ?? ""}` },
+];
+
+const REASON_LABEL: Record<string, { label: string; color: string }> = {
+  "mapping": { label: "mapping", color: "border-amber-500/40 bg-amber-500/10 text-amber-300" },
+  "provenance:dialect": { label: "prov · dialect", color: "border-sky-500/40 bg-sky-500/10 text-sky-300" },
+  "provenance:inp_section": { label: "prov · .inp section", color: "border-violet-500/40 bg-violet-500/10 text-violet-300" },
+  "provenance:tool_version": { label: "prov · tool version", color: "border-fuchsia-500/40 bg-fuchsia-500/10 text-fuchsia-300" },
+};
 
 function DiffPage() {
   const [a, setA] = useState<ExportFile | null>(null);
@@ -64,30 +82,31 @@ function DiffPage() {
 
   const diff = useMemo(() => {
     if (!a || !b) return null;
-    const ma = new Map(a.rows.map(r => [r.section, normalize(r)]));
-    const mb = new Map(b.rows.map(r => [r.section, normalize(r)]));
+    const ma = new Map(a.rows.map(r => [r.section, r]));
+    const mb = new Map(b.rows.map(r => [r.section, r]));
     const sections = new Set<string>([...ma.keys(), ...mb.keys()]);
     const added: string[] = [];
     const removed: string[] = [];
-    const changed: Array<{ section: string; fields: Array<{ field: string; a: string; b: string }>; aRow: ReturnType<typeof normalize>; bRow: ReturnType<typeof normalize> }> = [];
+    const changed: Array<{ section: string; fields: Array<{ field: string; reason: string; a: string; b: string }>; reasons: Set<string> }> = [];
     const unchanged: string[] = [];
     for (const s of [...sections].sort()) {
       const ra = ma.get(s); const rb = mb.get(s);
       if (!ra && rb) { added.push(s); continue; }
       if (ra && !rb) { removed.push(s); continue; }
       if (ra && rb) {
-        const fields: Array<{ field: string; a: string; b: string }> = [];
-        for (const f of COMPARED_FIELDS) {
-          const va = String((ra as Record<string, unknown>)[f as string] ?? "");
-          const vb = String((rb as Record<string, unknown>)[f as string] ?? "");
-          if (va !== vb) fields.push({ field: f as string, a: va, b: vb });
+        const fields: Array<{ field: string; reason: string; a: string; b: string }> = [];
+        const reasons = new Set<string>();
+        for (const spec of FIELD_SPECS) {
+          const va = spec.get(ra); const vb = spec.get(rb);
+          if (va !== vb) { fields.push({ field: spec.label, reason: spec.reason, a: va, b: vb }); reasons.add(spec.reason); }
         }
         if (fields.length === 0) unchanged.push(s);
-        else changed.push({ section: s, fields, aRow: ra, bRow: rb });
+        else changed.push({ section: s, fields, reasons });
       }
     }
     return { added, removed, changed, unchanged };
   }, [a, b]);
+
 
   return (
     <div className="max-w-5xl">
