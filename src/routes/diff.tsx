@@ -153,10 +153,19 @@ function DiffPage() {
           <DiffSection title="Changed" tone="amber" empty="No field-level changes.">
             {diff.changed.map(c => (
               <div key={c.section} className="rounded-md border border-border bg-card p-3">
-                <div className="font-mono text-[12.5px] text-foreground">{c.section}</div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="font-mono text-[12.5px] text-foreground">{c.section}</div>
+                  <div className="flex flex-wrap gap-1">
+                    {[...c.reasons].map(r => (
+                      <span key={r} className={`rounded border px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-wider ${REASON_LABEL[r]?.color ?? ""}`}>
+                        {REASON_LABEL[r]?.label ?? r}
+                      </span>
+                    ))}
+                  </div>
+                </div>
                 <div className="mt-2 space-y-1.5">
                   {c.fields.map(f => (
-                    <div key={f.field} className="grid grid-cols-[110px_1fr] gap-3 text-[12.5px]">
+                    <div key={f.field} className="grid grid-cols-[150px_1fr] gap-3 text-[12.5px]">
                       <div className="font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground">{f.field}</div>
                       <div className="space-y-0.5">
                         <div className="font-mono text-rose-300/90">- {f.a || <em className="not-italic text-muted-foreground">∅</em>}</div>
@@ -168,6 +177,7 @@ function DiffPage() {
               </div>
             ))}
           </DiffSection>
+
         </div>
       )}
     </div>
