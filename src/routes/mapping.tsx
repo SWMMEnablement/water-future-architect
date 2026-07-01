@@ -102,7 +102,74 @@ function MappingPage() {
     },
   });
 
-  const download = (fmt: "csv" | "json") => {
+  const REQUIRED_PROV_FIELDS = [
+    "source_dialect", "original_inp_section",
+    "tool", "tool_version", "tool_commit", "tool_build_date",
+    "spec_revision", "schema_version",
+  ] as const;
+
+  type ValidationIssue = { level: "error" | "warning"; section: string; field: string; message: string };
+  type ValidationResult = { checkedRows: number; issues: ValidationIssue[]; ok: boolean };
+
+  const validateEnriched = (
+    enriched: Array<MappingRow & { dialects: Dialect[]; provenance: ReturnType<typeof rowProvenance> }>,
+  ): ValidationResult => {
+    const issues: ValidationIssue[] = [];
+    const sectionsFilter = selectedSections.size > 0 ? selectedSections : null;
+    for (const r of enriched) {
+      const p = r.provenance as Record<string, unknown> | undefined;
+      if (!p) {
+        issues.push({ level: "error", section: r.section, field: "provenance", message: "row is missing provenance block" });
+        continue;
+      }
+      for (const f of REQUIRED_PROV_FIELDS) {
+        const v = p[f];
+        if (v === undefined || v === null || v === "") {
+          issues.push({ level: "error", section: r.section, field: `provenance.${f}`, message: "required provenance field is missing or empty" });
+        }
+      }
+      if (p.original_inp_section !== r.section) {
+        issues.push({ level: "error", section: r.section, field: "provenance.original_inp_section", message: `expected "${r.section}" but got "${String(p.original_inp_section)}"` });
+      }
+      const sd = String(p.source_dialect ?? "");
+      if (sd && !r.dialects.includes(sd as Dialect)) {
+        issues.push({ level: "error", section: r.section, field: "provenance.source_dialect", message: `"${sd}" is not one of the row's dialects (${r.dialects.join(", ")})` });
+      }
+      if (dialect !== "all" && sd && sd !== dialect && r.dialects.includes(dialect)) {
+        issues.push({ level: "warning", section: r.section, field: "provenance.source_dialect", message: `dialect filter is "${dialect}" but row provenance uses "${sd}"` });
+      }
+      if (sectionsFilter && !sectionsFilter.has(r.section)) {
+        issues.push({ level: "error", section: r.section, field: "section", message: "row is outside the selected sections filter" });
+      }
+      if (p.tool !== TOOL_NAME || p.tool_version !== TOOL_VERSION) {
+        issues.push({ level: "warning", section: r.section, field: "provenance.tool_version", message: `tool ${String(p.tool)}@${String(p.tool_version)} differs from build ${TOOL_NAME}@${TOOL_VERSION}` });
+      }
+      if (p.spec_revision !== MAPPING_SPEC_REVISION || p.schema_version !== SWMMX_SCHEMA_VERSION) {
+        issues.push({ level: "warning", section: r.section, field: "provenance.spec_revision", message: `row references spec ${String(p.spec_revision)} / schema v${String(p.schema_version)}` });
+      }
+    }
+    return {
+      checkedRows: enriched.length,
+      issues,
+      ok: issues.every(i => i.level !== "error"),
+    };
+  };
+
+  const [validation, setValidation] = useState<ValidationResult | null>(null);
+  const [pendingExport, setPendingExport] = useState<"csv" | "json" | null>(null);
+
+  const runValidation = () => {
+    const enriched = rows.map(r => ({
+      ...r,
+      dialects: rowDialects(r),
+      provenance: rowProvenance(r),
+    }));
+    const result = validateEnriched(enriched);
+    setValidation(result);
+    return result;
+  };
+
+  const doDownload = (fmt: "csv" | "json") => {
     const meta = buildMetadata(fmt);
     const stamp = meta.exported_at.slice(0, 10);
     const enriched = rows.map(r => ({
@@ -160,6 +227,22 @@ function MappingPage() {
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  const download = (fmt: "csv" | "json") => {
+    const result = runValidation();
+    if (!result.ok) {
+      setPendingExport(fmt);
+      return;
+    }
+    setPendingExport(null);
+    doDownload(fmt);
+  };
+
+  const forceDownload = () => {
+    if (pendingExport) doDownload(pendingExport);
+    setPendingExport(null);
+  };
+
 
   return (
     <div className="max-w-5xl">
