@@ -544,7 +544,12 @@ function DiffSection({
   );
 }
 
-function RowLine({ section, row }: { section: string; row: ExportRow }) {
+function RowLine({
+  section, row, validations,
+}: {
+  section: string; row: ExportRow;
+  validations?: { a?: RowValidation; b?: RowValidation };
+}) {
   const kind = row.kind as MappingRow["kind"];
   const rt = row.roundTrip as MappingRow["roundTrip"];
   return (
@@ -553,6 +558,9 @@ function RowLine({ section, row }: { section: string; row: ExportRow }) {
       <span className="font-mono text-foreground/70">→ {row.target}</span>
       <span className={`rounded border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${KIND_COLOR[kind]}`}>{kind}</span>
       <span className={`font-mono text-[10.5px] uppercase tracking-wider ${RT_COLOR[rt]}`}>{rt}</span>
+      {validations?.a && <ValidityBadge side="A" v={validations.a} />}
+      {validations?.b && <ValidityBadge side="B" v={validations.b} />}
     </div>
   );
 }
+
