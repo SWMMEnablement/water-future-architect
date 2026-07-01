@@ -381,3 +381,69 @@ function Legend({ color, label, desc }: { color: string; label: string; desc: st
     </div>
   );
 }
+
+function ProvenanceDrawer({
+  row,
+  prov,
+  onClose,
+}: {
+  row: MappingRow;
+  prov: {
+    source_dialect: Dialect;
+    source_dialects: Dialect[];
+    original_inp_section: string;
+    tool: string;
+    tool_version: string;
+    tool_commit: string;
+    tool_build_date: string;
+    spec_revision: string;
+    schema_version: string;
+  };
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-background/70 backdrop-blur-sm" onClick={onClose} />
+      <aside className="relative flex h-full w-full max-w-md flex-col overflow-y-auto border-l border-border bg-card p-6 shadow-xl">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-[10.5px] font-mono uppercase tracking-widest text-muted-foreground">Row provenance</div>
+            <h2 className="mt-1 font-mono text-lg text-foreground">{row.section}</h2>
+            <div className="mt-0.5 font-mono text-[12px] text-muted-foreground">{row.target}</div>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-md border border-border px-2 py-1 text-xs font-mono uppercase tracking-wider text-muted-foreground hover:text-foreground"
+          >
+            close
+          </button>
+        </div>
+
+        <dl className="mt-6 space-y-3 text-sm">
+          <Field label="Source dialect" value={prov.source_dialect} />
+          <Field label="Source dialects (available)" value={prov.source_dialects.join(" · ")} />
+          <Field label="Original .inp section" value={prov.original_inp_section} mono />
+          <Field label="Generation tool" value={`${prov.tool}@${prov.tool_version}`} mono />
+          <Field label="Tool commit" value={prov.tool_commit} mono />
+          <Field label="Tool build date" value={prov.tool_build_date} mono />
+          <Field label="Mapping spec revision" value={prov.spec_revision} mono />
+          <Field label="SWMM-X schema version" value={`v${prov.schema_version}`} mono />
+        </dl>
+
+        <pre className="mt-6 overflow-x-auto rounded-md border border-border bg-muted/30 p-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
+{JSON.stringify(prov, null, 2)}
+        </pre>
+      </aside>
+    </div>
+  );
+}
+
+function Field({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="flex flex-col gap-0.5 border-b border-border/60 pb-2">
+      <dt className="text-[10.5px] font-mono uppercase tracking-wider text-muted-foreground">{label}</dt>
+      <dd className={mono ? "font-mono text-[13px] text-foreground" : "text-[13px] text-foreground"}>{value}</dd>
+    </div>
+  );
+}
+
