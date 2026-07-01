@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Fragment, useMemo, useState } from "react";
+import { Switch } from "@/components/ui/switch";
 import {
   KIND_COLOR,
   RT_COLOR,
@@ -116,6 +117,7 @@ function downloadValidationCSV(
   a: ExportFile | null,
   b: ExportFile | null,
   validation: { a: ExportValidation | null; b: ExportValidation | null },
+  onlyFailing: boolean,
 ) {
   const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
   const now = new Date().toISOString();
@@ -125,6 +127,7 @@ function downloadValidationCSV(
     `# tool=${TOOL_NAME}@${TOOL_VERSION} commit=${TOOL_COMMIT} build=${TOOL_BUILD_DATE}`,
     `# exported_at=${now}`,
     `# format=swmmx-diff-validation/csv`,
+    `# only_failing=${onlyFailing}`,
     `# a_rows=${a?.rows.length ?? 0}`,
     `# b_rows=${b?.rows.length ?? 0}`,
     `# a_failing=${validation.a?.failing.length ?? 0}`,
@@ -141,8 +144,10 @@ function downloadValidationCSV(
         );
       }
     }
-    for (const rv of [...val.rows.values()].filter(r => r.ok)) {
-      lines.push([side, rv.section, "true", "", ""].map(esc).join(","));
+    if (!onlyFailing) {
+      for (const rv of [...val.rows.values()].filter(r => r.ok)) {
+        lines.push([side, rv.section, "true", "", ""].map(esc).join(","));
+      }
     }
   };
 
