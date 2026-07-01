@@ -1,6 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Fragment, useMemo, useState } from "react";
-import { KIND_COLOR, RT_COLOR, type MappingRow } from "../lib/inp-mapping";
+import {
+  KIND_COLOR,
+  RT_COLOR,
+  SWMMX_SCHEMA_VERSION,
+  MAPPING_SPEC_REVISION,
+  TOOL_NAME,
+  TOOL_VERSION,
+  TOOL_COMMIT,
+  TOOL_BUILD_DATE,
+  type MappingRow,
+} from "../lib/inp-mapping";
 
 export const Route = createFileRoute("/diff")({
   head: () => ({
@@ -102,6 +112,51 @@ function validateExport(file: ExportFile): ExportValidation {
   return { rows, failing, ok: failing.length === 0 };
 }
 
+function downloadValidationCSV(
+  a: ExportFile | null,
+  b: ExportFile | null,
+  validation: { a: ExportValidation | null; b: ExportValidation | null },
+) {
+  const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
+  const now = new Date().toISOString();
+  const lines: string[] = [
+    `# swmmx_schema_version=${SWMMX_SCHEMA_VERSION}`,
+    `# mapping_spec_revision=${MAPPING_SPEC_REVISION}`,
+    `# tool=${TOOL_NAME}@${TOOL_VERSION} commit=${TOOL_COMMIT} build=${TOOL_BUILD_DATE}`,
+    `# exported_at=${now}`,
+    `# format=swmmx-diff-validation/csv`,
+    `# a_rows=${a?.rows.length ?? 0}`,
+    `# b_rows=${b?.rows.length ?? 0}`,
+    `# a_failing=${validation.a?.failing.length ?? 0}`,
+    `# b_failing=${validation.b?.failing.length ?? 0}`,
+    "side,section,ok,field,message",
+  ];
+
+  const addSide = (side: string, val: ExportValidation | null) => {
+    if (!val) return;
+    for (const rv of val.failing) {
+      for (const issue of rv.issues) {
+        lines.push(
+          [side, rv.section, "false", issue.field, issue.message].map(esc).join(","),
+        );
+      }
+    }
+    for (const rv of [...val.rows.values()].filter(r => r.ok)) {
+      lines.push([side, rv.section, "true", "", ""].map(esc).join(","));
+    }
+  };
+
+  addSide("A", validation.a);
+  addSide("B", validation.b);
+
+  const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const el = document.createElement("a");
+  el.href = url;
+  el.download = `swmmx-diff-validation-v${SWMMX_SCHEMA_VERSION}-${now.slice(0, 10)}.csv`;
+  el.click();
+  URL.revokeObjectURL(url);
+}
 
 function DiffPage() {
   const [a, setA] = useState<ExportFile | null>(null);
@@ -189,6 +244,17 @@ function DiffPage() {
 
       {(validation.a || validation.b) && (
         <ValidationSummary a={validation.a} b={validation.b} />
+      )}
+
+      {(validation.a || validation.b) && (
+        <div className="mt-3 flex justify-end">
+          <button
+            onClick={() => downloadValidationCSV(a, b, validation)}
+            className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-mono uppercase tracking-wider text-foreground/80 hover:bg-accent hover:text-foreground"
+          >
+            Download validation CSV
+          </button>
+        </div>
       )}
 
       {(validation.a?.failing.length || validation.b?.failing.length) ? (
