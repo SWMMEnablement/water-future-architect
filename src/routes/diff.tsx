@@ -187,6 +187,7 @@ function DiffPage() {
     }
   };
 
+  const [onlyFailing, setOnlyFailing] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggleExpanded = (s: string) => setExpanded(prev => {
     const n = new Set(prev); n.has(s) ? n.delete(s) : n.add(s); return n;
@@ -252,9 +253,16 @@ function DiffPage() {
       )}
 
       {(validation.a || validation.b) && (
-        <div className="mt-3 flex justify-end">
+        <div className="mt-3 flex items-center justify-end gap-3">
+          <label className="flex cursor-pointer items-center gap-2 text-xs font-mono uppercase tracking-wider text-muted-foreground">
+            <Switch
+              checked={onlyFailing}
+              onCheckedChange={setOnlyFailing}
+            />
+            Only failing rows
+          </label>
           <button
-            onClick={() => downloadValidationCSV(a, b, validation)}
+            onClick={() => downloadValidationCSV(a, b, validation, onlyFailing)}
             className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-mono uppercase tracking-wider text-foreground/80 hover:bg-accent hover:text-foreground"
           >
             Download validation CSV
