@@ -112,6 +112,51 @@ function validateExport(file: ExportFile): ExportValidation {
   return { rows, failing, ok: failing.length === 0 };
 }
 
+function downloadValidationCSV(
+  a: ExportFile | null,
+  b: ExportFile | null,
+  validation: { a: ExportValidation | null; b: ExportValidation | null },
+) {
+  const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
+  const now = new Date().toISOString();
+  const lines: string[] = [
+    `# swmmx_schema_version=${SWMMX_SCHEMA_VERSION}`,
+    `# mapping_spec_revision=${MAPPING_SPEC_REVISION}`,
+    `# tool=${TOOL_NAME}@${TOOL_VERSION} commit=${TOOL_COMMIT} build=${TOOL_BUILD_DATE}`,
+    `# exported_at=${now}`,
+    `# format=swmmx-diff-validation/csv`,
+    `# a_rows=${a?.rows.length ?? 0}`,
+    `# b_rows=${b?.rows.length ?? 0}`,
+    `# a_failing=${validation.a?.failing.length ?? 0}`,
+    `# b_failing=${validation.b?.failing.length ?? 0}`,
+    "side,section,ok,field,message",
+  ];
+
+  const addSide = (side: string, val: ExportValidation | null) => {
+    if (!val) return;
+    for (const rv of val.failing) {
+      for (const issue of rv.issues) {
+        lines.push(
+          [side, rv.section, "false", issue.field, issue.message].map(esc).join(","),
+        );
+      }
+    }
+    for (const rv of [...val.rows.values()].filter(r => r.ok)) {
+      lines.push([side, rv.section, "true", "", ""].map(esc).join(","));
+    }
+  };
+
+  addSide("A", validation.a);
+  addSide("B", validation.b);
+
+  const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const el = document.createElement("a");
+  el.href = url;
+  el.download = `swmmx-diff-validation-v${SWMMX_SCHEMA_VERSION}-${now.slice(0, 10)}.csv`;
+  el.click();
+  URL.revokeObjectURL(url);
+}
 
 function DiffPage() {
   const [a, setA] = useState<ExportFile | null>(null);
