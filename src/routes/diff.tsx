@@ -56,6 +56,53 @@ const REASON_LABEL: Record<string, { label: string; color: string }> = {
   "provenance:tool_version": { label: "prov · tool version", color: "border-fuchsia-500/40 bg-fuchsia-500/10 text-fuchsia-300" },
 };
 
+const REQUIRED_PROV_FIELDS = [
+  "source_dialect", "original_inp_section",
+  "tool", "tool_version", "tool_commit", "tool_build_date",
+  "spec_revision", "schema_version",
+] as const;
+
+type ProvIssue = { field: string; message: string };
+type RowValidation = { section: string; ok: boolean; issues: ProvIssue[] };
+type ExportValidation = { rows: Map<string, RowValidation>; failing: RowValidation[]; ok: boolean };
+
+function validateExport(file: ExportFile): ExportValidation {
+  const rows = new Map<string, RowValidation>();
+  const failing: RowValidation[] = [];
+  const declaredDialects = new Set(
+    Array.isArray(file.metadata?.source_dialects) ? (file.metadata!.source_dialects as string[]) : [],
+  );
+  for (const r of file.rows) {
+    const issues: ProvIssue[] = [];
+    const p = r.provenance;
+    if (!p) {
+      issues.push({ field: "provenance", message: "row is missing provenance block" });
+    } else {
+      for (const f of REQUIRED_PROV_FIELDS) {
+        const v = (p as Record<string, unknown>)[f];
+        if (v === undefined || v === null || v === "") {
+          issues.push({ field: `provenance.${f}`, message: "required field is missing or empty" });
+        }
+      }
+      if (p.original_inp_section && p.original_inp_section !== r.section) {
+        issues.push({ field: "provenance.original_inp_section", message: `expected "${r.section}" but got "${p.original_inp_section}"` });
+      }
+      const rowDialects = r.dialects ?? p.source_dialects ?? ["SWMM5", "SWMM6"];
+      if (p.source_dialect && !rowDialects.includes(p.source_dialect)) {
+        issues.push({ field: "provenance.source_dialect", message: `"${p.source_dialect}" is not one of the row's dialects (${rowDialects.join(", ")})` });
+      }
+      if (declaredDialects.size > 0 && p.source_dialect && !declaredDialects.has(p.source_dialect)) {
+        issues.push({ field: "provenance.source_dialect", message: `"${p.source_dialect}" is not in file's source_dialects (${[...declaredDialects].join(", ")})` });
+      }
+    }
+    const rv: RowValidation = { section: r.section, ok: issues.length === 0, issues };
+    rows.set(r.section, rv);
+    if (!rv.ok) failing.push(rv);
+  }
+  return { rows, failing, ok: failing.length === 0 };
+}
+
+
 function DiffPage() {
   const [a, setA] = useState<ExportFile | null>(null);
   const [b, setB] = useState<ExportFile | null>(null);
