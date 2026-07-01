@@ -372,6 +372,12 @@ function MappingPage() {
             </select>
           </label>
           <button
+            onClick={runValidation}
+            className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-mono uppercase tracking-wider text-foreground/80 hover:bg-accent hover:text-foreground"
+          >
+            Validate
+          </button>
+          <button
             onClick={() => download("csv")}
             className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-mono uppercase tracking-wider text-foreground/80 hover:bg-accent hover:text-foreground"
           >
@@ -385,6 +391,16 @@ function MappingPage() {
           </button>
         </div>
       </div>
+
+      {validation && (
+        <ValidationPanel
+          result={validation}
+          pending={pendingExport}
+          onDismiss={() => { setValidation(null); setPendingExport(null); }}
+          onForce={forceDownload}
+        />
+      )}
+
 
       <div className="mt-4 overflow-hidden rounded-md border border-border">
         <table className="w-full border-collapse text-sm">
