@@ -10,8 +10,12 @@ import {
   TOOL_VERSION,
   TOOL_COMMIT,
   TOOL_BUILD_DATE,
+  WATER_QUALITY_SECTIONS,
   type MappingRow,
 } from "../lib/inp-mapping";
+
+const WQ_SET = new Set<string>(WATER_QUALITY_SECTIONS as readonly string[]);
+const isWQSection = (s: string) => WQ_SET.has(s);
 
 export const Route = createFileRoute("/diff")({
   head: () => ({
