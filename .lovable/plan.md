@@ -2,6 +2,8 @@
 
 Three concrete specs that turn the SXPF v1 design into something a team can implement and test against this quarter.
 
+**Water quality is first-class in v1.0** — pollutants, land uses, buildup, washoff, coverages, loadings, and treatment are part of the frozen schema, not behind a feature flag. Conformance harness, JSON Schema, and Parquet layout all include the quality surface from day one.
+
 ---
 
 ## 1. `.inp` ↔ SXPF backward-compatibility mapping
