@@ -44,7 +44,7 @@ Goal: every EPA-SWMM5 `.inp` and every SWMM6 dialect imports losslessly into SXP
 [POLLUTANTS]/[LANDUSES]/
  [BUILDUP]/[WASHOFF]/
  [COVERAGES]/[LOADINGS]/
- [TREATMENT]          quality/*.parquet (feature-flag)
+ [TREATMENT]          quality/*.parquet (v1.0 first-class)
 [LID_CONTROLS]/[LID_USAGE] topology/lid/*.parquet
 [DWF]/[INFLOWS]/[RDII] forcings/inflows.parquet
 [REPORT]/[TAGS]/[MAP]/
