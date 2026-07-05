@@ -77,19 +77,21 @@ const REQUIRED_PROV_FIELDS = [
   "spec_revision", "schema_version",
 ] as const;
 
-type ProvIssue = { field: string; message: string };
-type RowValidation = { section: string; ok: boolean; issues: ProvIssue[] };
-type ExportValidation = { rows: Map<string, RowValidation>; failing: RowValidation[]; ok: boolean };
+type ProvIssue = { field: string; message: string; wq?: boolean };
+type RowValidation = { section: string; ok: boolean; issues: ProvIssue[]; wq: boolean };
+type ExportValidation = { rows: Map<string, RowValidation>; failing: RowValidation[]; wqFailing: RowValidation[]; ok: boolean };
 
 function validateExport(file: ExportFile): ExportValidation {
   const rows = new Map<string, RowValidation>();
   const failing: RowValidation[] = [];
+  const wqFailing: RowValidation[] = [];
   const declaredDialects = new Set(
     Array.isArray(file.metadata?.source_dialects) ? (file.metadata!.source_dialects as string[]) : [],
   );
   for (const r of file.rows) {
     const issues: ProvIssue[] = [];
     const p = r.provenance;
+    const isWQ = isWQSection(r.section);
     if (!p) {
       issues.push({ field: "provenance", message: "row is missing provenance block" });
     } else {
@@ -110,11 +112,33 @@ function validateExport(file: ExportFile): ExportValidation {
         issues.push({ field: "provenance.source_dialect", message: `"${p.source_dialect}" is not in file's source_dialects (${[...declaredDialects].join(", ")})` });
       }
     }
-    const rv: RowValidation = { section: r.section, ok: issues.length === 0, issues };
+
+    // Water-quality specific checks (v1.0 first-class scope)
+    if (isWQ) {
+      if (r.kind !== "quality") {
+        issues.push({ field: "kind", message: `water-quality section must have kind="quality" (got "${r.kind ?? "∅"}")`, wq: true });
+      }
+      const target = String(r.target ?? "");
+      if (!/^quality\//.test(target)) {
+        issues.push({ field: "target", message: `water-quality section must target "quality/*" (got "${target || "∅"}")`, wq: true });
+      }
+      if (p && p.original_inp_section && p.original_inp_section !== r.section) {
+        issues.push({ field: "provenance.original_inp_section", message: `WQ provenance section mismatch — declared "${p.original_inp_section}" for row "${r.section}"`, wq: true });
+      }
+      const rd = r.dialects ?? p?.source_dialects ?? ["SWMM5", "SWMM6"];
+      if (!rd.includes("SWMM5") || !rd.includes("SWMM6")) {
+        issues.push({ field: "dialects", message: `WQ sections must round-trip both SWMM5 and SWMM6 (row dialects: ${rd.join(", ") || "∅"})`, wq: true });
+      }
+    }
+
+    const rv: RowValidation = { section: r.section, ok: issues.length === 0, issues, wq: isWQ };
     rows.set(r.section, rv);
-    if (!rv.ok) failing.push(rv);
+    if (!rv.ok) {
+      failing.push(rv);
+      if (isWQ) wqFailing.push(rv);
+    }
   }
-  return { rows, failing, ok: failing.length === 0 };
+  return { rows, failing, wqFailing, ok: failing.length === 0 };
 }
 
 function downloadValidationCSV(
