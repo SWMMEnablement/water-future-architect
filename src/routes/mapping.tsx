@@ -11,6 +11,8 @@ import {
   TOOL_VERSION,
   TOOL_COMMIT,
   TOOL_BUILD_DATE,
+  WATER_QUALITY_SECTIONS,
+  WATER_QUALITY_FIELDS,
   rowDialects,
   type Dialect,
   type MappingRow,
