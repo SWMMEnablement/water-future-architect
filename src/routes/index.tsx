@@ -1,4 +1,38 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+
+const WHATS_NEW_KEY = "swmmx.whatsnew.openswmm-2026";
+
+function WhatsNewBanner() {
+  const [dismissed, setDismissed] = useState(true);
+  useEffect(() => {
+    setDismissed(localStorage.getItem(WHATS_NEW_KEY) === "1");
+  }, []);
+  if (dismissed) return null;
+  return (
+    <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-md border border-amber-500/40 bg-amber-500/5 px-4 py-2.5 text-[13.5px]">
+      <div className="flex items-center gap-2 text-foreground/90">
+        <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-amber-300">
+          What's new
+        </span>
+        <span>
+          New section:{" "}
+          <a href="#openswmm" className="text-amber-300 underline decoration-amber-500/40 underline-offset-2 hover:text-amber-200">
+            Where OpenSWMM / SWMM6 stands today
+          </a>{" "}
+          — why the SXPF gap is bigger than it was six months ago.
+        </span>
+      </div>
+      <button
+        onClick={() => { localStorage.setItem(WHATS_NEW_KEY, "1"); setDismissed(true); }}
+        className="rounded border border-amber-500/40 bg-transparent px-2 py-0.5 font-mono text-[11px] uppercase tracking-wider text-amber-300 hover:bg-amber-500/10"
+      >
+        dismiss
+      </button>
+    </div>
+  );
+}
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
