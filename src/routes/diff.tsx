@@ -10,8 +10,12 @@ import {
   TOOL_VERSION,
   TOOL_COMMIT,
   TOOL_BUILD_DATE,
+  WATER_QUALITY_SECTIONS,
   type MappingRow,
 } from "../lib/inp-mapping";
+
+const WQ_SET = new Set<string>(WATER_QUALITY_SECTIONS as readonly string[]);
+const isWQSection = (s: string) => WQ_SET.has(s);
 
 export const Route = createFileRoute("/diff")({
   head: () => ({
@@ -73,19 +77,21 @@ const REQUIRED_PROV_FIELDS = [
   "spec_revision", "schema_version",
 ] as const;
 
-type ProvIssue = { field: string; message: string };
-type RowValidation = { section: string; ok: boolean; issues: ProvIssue[] };
-type ExportValidation = { rows: Map<string, RowValidation>; failing: RowValidation[]; ok: boolean };
+type ProvIssue = { field: string; message: string; wq?: boolean };
+type RowValidation = { section: string; ok: boolean; issues: ProvIssue[]; wq: boolean };
+type ExportValidation = { rows: Map<string, RowValidation>; failing: RowValidation[]; wqFailing: RowValidation[]; ok: boolean };
 
 function validateExport(file: ExportFile): ExportValidation {
   const rows = new Map<string, RowValidation>();
   const failing: RowValidation[] = [];
+  const wqFailing: RowValidation[] = [];
   const declaredDialects = new Set(
     Array.isArray(file.metadata?.source_dialects) ? (file.metadata!.source_dialects as string[]) : [],
   );
   for (const r of file.rows) {
     const issues: ProvIssue[] = [];
     const p = r.provenance;
+    const isWQ = isWQSection(r.section);
     if (!p) {
       issues.push({ field: "provenance", message: "row is missing provenance block" });
     } else {
@@ -106,11 +112,33 @@ function validateExport(file: ExportFile): ExportValidation {
         issues.push({ field: "provenance.source_dialect", message: `"${p.source_dialect}" is not in file's source_dialects (${[...declaredDialects].join(", ")})` });
       }
     }
-    const rv: RowValidation = { section: r.section, ok: issues.length === 0, issues };
+
+    // Water-quality specific checks (v1.0 first-class scope)
+    if (isWQ) {
+      if (r.kind !== "quality") {
+        issues.push({ field: "kind", message: `water-quality section must have kind="quality" (got "${r.kind ?? "∅"}")`, wq: true });
+      }
+      const target = String(r.target ?? "");
+      if (!/^quality\//.test(target)) {
+        issues.push({ field: "target", message: `water-quality section must target "quality/*" (got "${target || "∅"}")`, wq: true });
+      }
+      if (p && p.original_inp_section && p.original_inp_section !== r.section) {
+        issues.push({ field: "provenance.original_inp_section", message: `WQ provenance section mismatch — declared "${p.original_inp_section}" for row "${r.section}"`, wq: true });
+      }
+      const rd = r.dialects ?? p?.source_dialects ?? ["SWMM5", "SWMM6"];
+      if (!rd.includes("SWMM5") || !rd.includes("SWMM6")) {
+        issues.push({ field: "dialects", message: `WQ sections must round-trip both SWMM5 and SWMM6 (row dialects: ${rd.join(", ") || "∅"})`, wq: true });
+      }
+    }
+
+    const rv: RowValidation = { section: r.section, ok: issues.length === 0, issues, wq: isWQ };
     rows.set(r.section, rv);
-    if (!rv.ok) failing.push(rv);
+    if (!rv.ok) {
+      failing.push(rv);
+      if (isWQ) wqFailing.push(rv);
+    }
   }
-  return { rows, failing, ok: failing.length === 0 };
+  return { rows, failing, wqFailing, ok: failing.length === 0 };
 }
 
 function downloadValidationCSV(
@@ -273,6 +301,10 @@ function DiffPage() {
       {(validation.a?.failing.length || validation.b?.failing.length) ? (
         <FailingRowsPanel a={validation.a} b={validation.b} />
       ) : null}
+
+      {(validation.a || validation.b) && (
+        <WaterQualityPanel a={validation.a} b={validation.b} aFile={a} bFile={b} />
+      )}
 
       {diff && (
         <div className="mt-8 space-y-6">
@@ -642,4 +674,131 @@ function RowLine({
     </div>
   );
 }
+
+function WaterQualityPanel({
+  a, b, aFile, bFile,
+}: {
+  a: ExportValidation | null; b: ExportValidation | null;
+  aFile: ExportFile | null; bFile: ExportFile | null;
+}) {
+  const wqSections = WATER_QUALITY_SECTIONS as readonly string[];
+  const rowsA = new Map<string, ExportRow>();
+  const rowsB = new Map<string, ExportRow>();
+  aFile?.rows.forEach(r => { if (isWQSection(r.section)) rowsA.set(r.section, r); });
+  bFile?.rows.forEach(r => { if (isWQSection(r.section)) rowsB.set(r.section, r); });
+
+  const aFailCount = a?.wqFailing.length ?? 0;
+  const bFailCount = b?.wqFailing.length ?? 0;
+  const aWQTotal = [...(a?.rows.values() ?? [])].filter(r => r.wq).length;
+  const bWQTotal = [...(b?.rows.values() ?? [])].filter(r => r.wq).length;
+
+  // Cross-file provenance mismatches, limited to WQ sections
+  type Mismatch = { section: string; field: string; a: string; b: string };
+  const mismatches: Mismatch[] = [];
+  for (const s of wqSections) {
+    const ra = rowsA.get(s); const rb = rowsB.get(s);
+    if (!ra || !rb) continue;
+    const pairs: Array<[string, string, string]> = [
+      ["target", String(ra.target ?? ""), String(rb.target ?? "")],
+      ["kind", String(ra.kind ?? ""), String(rb.kind ?? "")],
+      ["dialects", (ra.dialects ?? []).slice().sort().join("|"), (rb.dialects ?? []).slice().sort().join("|")],
+      ["prov.source_dialect", String(ra.provenance?.source_dialect ?? ""), String(rb.provenance?.source_dialect ?? "")],
+      ["prov.original_inp_section", String(ra.provenance?.original_inp_section ?? ""), String(rb.provenance?.original_inp_section ?? "")],
+      ["prov.tool_version", `${ra.provenance?.tool ?? ""}@${ra.provenance?.tool_version ?? ""}`, `${rb.provenance?.tool ?? ""}@${rb.provenance?.tool_version ?? ""}`],
+    ];
+    for (const [f, va, vb] of pairs) {
+      if (va !== vb) mismatches.push({ section: s, field: f, a: va, b: vb });
+    }
+  }
+
+  const anyFailing = aFailCount + bFailCount + mismatches.length > 0;
+  const tone = anyFailing
+    ? "border-cyan-500/40 bg-cyan-500/5"
+    : "border-cyan-500/30 bg-cyan-500/5";
+
+  return (
+    <div className={`mt-4 rounded-md border p-3 ${tone}`}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="font-mono text-[10.5px] uppercase tracking-wider text-cyan-300">
+          Water quality · v1.0 first-class
+        </div>
+        <div className="font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground">
+          A {aWQTotal ? `${aFailCount}/${aWQTotal} failing` : "no wq rows"}
+          {" · "}
+          B {bWQTotal ? `${bFailCount}/${bWQTotal} failing` : "no wq rows"}
+          {" · "}
+          {mismatches.length} cross-file mismatches
+        </div>
+      </div>
+
+      {(aFailCount + bFailCount) > 0 && (
+        <div className="mt-3 space-y-2">
+          <div className="font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground">
+            Failing water-quality rows
+          </div>
+          {wqSections
+            .filter(s => a?.rows.get(s)?.ok === false || b?.rows.get(s)?.ok === false)
+            .map(s => {
+              const va = a?.rows.get(s); const vb = b?.rows.get(s);
+              return (
+                <div key={s} className="rounded border border-border bg-card p-2.5">
+                  <div className="font-mono text-[12.5px] text-foreground">{s}</div>
+                  <div className="mt-1.5 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <FailingSide label="A" v={va} />
+                    <FailingSide label="B" v={vb} />
+                  </div>
+                  {(va?.issues.filter(i => i.wq).length || vb?.issues.filter(i => i.wq).length) ? (
+                    <div className="mt-1.5 flex flex-wrap gap-1">
+                      {[...(va?.issues.filter(i => i.wq) ?? []), ...(vb?.issues.filter(i => i.wq) ?? [])].map((i, idx) => (
+                        <span key={idx} className="rounded border border-cyan-500/40 bg-cyan-500/10 px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-wider text-cyan-300">
+                          wq · {i.field}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+        </div>
+      )}
+
+      {mismatches.length > 0 && (
+        <div className="mt-3">
+          <div className="font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground">
+            Cross-file water-quality field mismatches
+          </div>
+          <div className="mt-1.5 overflow-hidden rounded border border-border">
+            <table className="w-full border-collapse text-[12px]">
+              <thead>
+                <tr className="bg-muted/40 text-left text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+                  <th className="px-2 py-1.5 font-medium">Section</th>
+                  <th className="px-2 py-1.5 font-medium">Field</th>
+                  <th className="px-2 py-1.5 font-medium">A</th>
+                  <th className="px-2 py-1.5 font-medium">B</th>
+                </tr>
+              </thead>
+              <tbody>
+                {mismatches.map((m, i) => (
+                  <tr key={i} className="border-t border-border align-top">
+                    <td className="px-2 py-1.5 font-mono text-foreground">{m.section}</td>
+                    <td className="px-2 py-1.5 font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground">{m.field}</td>
+                    <td className="px-2 py-1.5 font-mono text-rose-300/90">{m.a || "∅"}</td>
+                    <td className="px-2 py-1.5 font-mono text-emerald-300/90">{m.b || "∅"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {!anyFailing && (
+        <div className="mt-2 text-[12px] text-muted-foreground">
+          All water-quality sections pass provenance checks and match across both files.
+        </div>
+      )}
+    </div>
+  );
+}
+
 

@@ -11,6 +11,8 @@ import {
   TOOL_VERSION,
   TOOL_COMMIT,
   TOOL_BUILD_DATE,
+  WATER_QUALITY_SECTIONS,
+  WATER_QUALITY_FIELDS,
   rowDialects,
   type Dialect,
   type MappingRow,
@@ -468,7 +470,68 @@ function MappingPage() {
         <Legend color="text-amber-400" label="semantic" desc="Reformatting or section merge; AST equality holds." />
         <Legend color="text-rose-400" label="lossy" desc="Information dropped; declared explicitly on export." />
       </div>
+
+      <WaterQualityDocs />
     </div>
+  );
+}
+
+function WaterQualityDocs() {
+  return (
+    <section className="mt-10">
+      <div className="text-xs font-mono uppercase tracking-widest text-cyan-300">Water quality · v1.0 first-class</div>
+      <h2 className="mt-1 text-2xl font-semibold tracking-tight">SWMM5 ↔ SWMM6 water-quality fields</h2>
+      <p className="mt-2 max-w-2xl text-[14px] leading-6 text-muted-foreground">
+        All seven water-quality sections ship in SXPF v1.0 — not deferred, not feature-flagged. Below is the
+        per-section field mapping between the SWMM5 positional <code className="rounded bg-muted px-1 py-0.5 font-mono text-[12.5px]">.inp</code>{" "}
+        format and the SWMM6 typed extension. SXPF stores the union; export to either dialect preserves what
+        each format can carry and warns on anything it cannot.
+      </p>
+
+      <div className="mt-5 space-y-5">
+        {WATER_QUALITY_SECTIONS.map(section => {
+          const fields = WATER_QUALITY_FIELDS[section] ?? [];
+          const row = MAPPING.find(r => r.section === section);
+          return (
+            <div key={section} className="overflow-hidden rounded-md border border-cyan-500/30 bg-card">
+              <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border bg-cyan-500/5 px-3 py-2">
+                <div className="flex items-baseline gap-3">
+                  <span className="font-mono text-sm text-foreground">{section}</span>
+                  {row && (
+                    <span className="font-mono text-[12px] text-muted-foreground">→ {row.target}</span>
+                  )}
+                </div>
+                {row && (
+                  <span className={`font-mono text-[10.5px] uppercase tracking-wider ${RT_COLOR[row.roundTrip]}`}>
+                    {row.roundTrip}
+                  </span>
+                )}
+              </div>
+              <table className="w-full border-collapse text-[13px]">
+                <thead>
+                  <tr className="bg-muted/40 text-left text-[10.5px] font-mono uppercase tracking-wider text-muted-foreground">
+                    <th className="px-3 py-1.5 font-medium">Field</th>
+                    <th className="px-3 py-1.5 font-medium">Type</th>
+                    <th className="px-3 py-1.5 font-medium">SWMM5</th>
+                    <th className="px-3 py-1.5 font-medium">SWMM6</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {fields.map(f => (
+                    <tr key={f.name} className="border-t border-border align-top">
+                      <td className="px-3 py-1.5 font-mono text-[12.5px] text-foreground">{f.name}</td>
+                      <td className="px-3 py-1.5 font-mono text-[12px] text-foreground/80">{f.type}</td>
+                      <td className="px-3 py-1.5 text-[12.5px] text-muted-foreground">{f.swmm5}</td>
+                      <td className="px-3 py-1.5 text-[12.5px] text-muted-foreground">{f.swmm6}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

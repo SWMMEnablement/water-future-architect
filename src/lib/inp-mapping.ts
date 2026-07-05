@@ -46,7 +46,7 @@ export const MAPPING: MappingRow[] = [
   { section: "[CURVES]", target: "topology/curves/<id>.parquet", kind: "topology", notes: "Typed (pump/storage/rating/...)", roundTrip: "lossless" },
   { section: "[TIMESERIES]", target: "forcings/series/<id>.parquet", kind: "forcings", notes: "External file refs preserved", roundTrip: "lossless" },
   { section: "[PATTERNS]", target: "topology/patterns/<id>.parquet", kind: "topology", notes: "Hourly/daily/monthly/weekend", roundTrip: "lossless" },
-  { section: "[POLLUTANTS]", target: "quality/pollutants.parquet", kind: "quality", notes: "Feature-flag in v1.0", roundTrip: "lossless" },
+  { section: "[POLLUTANTS]", target: "quality/pollutants.parquet", kind: "quality", notes: "id, units, concentrations, decay coefficient, co-pollutant", roundTrip: "lossless" },
   { section: "[LANDUSES]", target: "quality/landuses.parquet", kind: "quality", notes: "", roundTrip: "lossless" },
   { section: "[BUILDUP]", target: "quality/buildup.parquet", kind: "quality", notes: "", roundTrip: "lossless" },
   { section: "[WASHOFF]", target: "quality/washoff.parquet", kind: "quality", notes: "", roundTrip: "lossless" },
@@ -90,4 +90,67 @@ export const RT_COLOR: Record<MappingRow["roundTrip"], string> = {
   lossless: "text-emerald-400",
   semantic: "text-amber-400",
   lossy: "text-rose-400",
+};
+
+/** Water-quality sections that ship first-class in SXPF v1.0. */
+export const WATER_QUALITY_SECTIONS = [
+  "[POLLUTANTS]", "[LANDUSES]", "[BUILDUP]", "[WASHOFF]",
+  "[COVERAGES]", "[LOADINGS]", "[TREATMENT]",
+] as const;
+
+/** Documented WQ fields per section — used by mapping + diff pages. */
+export type WQFieldDoc = { name: string; type: string; swmm5: string; swmm6: string };
+export const WATER_QUALITY_FIELDS: Record<string, WQFieldDoc[]> = {
+  "[POLLUTANTS]": [
+    { name: "id", type: "string", swmm5: "col 1", swmm6: "col 1 (unchanged)" },
+    { name: "units", type: "enum{MG/L,UG/L,#/L}", swmm5: "col 2", swmm6: "col 2 (unchanged)" },
+    { name: "rain_concen", type: "float", swmm5: "col 3", swmm6: "col 3" },
+    { name: "gw_concen", type: "float", swmm5: "col 4", swmm6: "col 4" },
+    { name: "ii_concen", type: "float", swmm5: "col 5", swmm6: "col 5" },
+    { name: "decay_coeff", type: "float 1/day", swmm5: "col 6", swmm6: "col 6" },
+    { name: "snow_only", type: "bool", swmm5: "col 7 (YES|NO)", swmm6: "col 7" },
+    { name: "co_pollutant", type: "string?", swmm5: "col 8", swmm6: "col 8" },
+    { name: "co_fraction", type: "float?", swmm5: "col 9", swmm6: "col 9" },
+    { name: "dwf_concen", type: "float?", swmm5: "col 10 (optional)", swmm6: "typed field" },
+  ],
+  "[LANDUSES]": [
+    { name: "id", type: "string", swmm5: "col 1", swmm6: "col 1" },
+    { name: "sweep_interval", type: "float days", swmm5: "col 2", swmm6: "col 2" },
+    { name: "sweep_availability", type: "float 0-1", swmm5: "col 3", swmm6: "col 3" },
+    { name: "last_swept", type: "float days", swmm5: "col 4", swmm6: "col 4" },
+  ],
+  "[BUILDUP]": [
+    { name: "landuse_id", type: "FK landuses", swmm5: "col 1", swmm6: "col 1" },
+    { name: "pollutant_id", type: "FK pollutants", swmm5: "col 2", swmm6: "col 2" },
+    { name: "func", type: "enum{POW,EXP,SAT,EXT}", swmm5: "col 3", swmm6: "col 3" },
+    { name: "c1", type: "float", swmm5: "col 4", swmm6: "col 4" },
+    { name: "c2", type: "float", swmm5: "col 5", swmm6: "col 5" },
+    { name: "c3", type: "float", swmm5: "col 6", swmm6: "col 6" },
+    { name: "per_unit", type: "enum{AREA,CURB}", swmm5: "col 7", swmm6: "col 7" },
+  ],
+  "[WASHOFF]": [
+    { name: "landuse_id", type: "FK landuses", swmm5: "col 1", swmm6: "col 1" },
+    { name: "pollutant_id", type: "FK pollutants", swmm5: "col 2", swmm6: "col 2" },
+    { name: "func", type: "enum{EXP,RC,EMC}", swmm5: "col 3", swmm6: "col 3" },
+    { name: "c1", type: "float", swmm5: "col 4", swmm6: "col 4" },
+    { name: "c2", type: "float", swmm5: "col 5", swmm6: "col 5" },
+    { name: "cleaning_eff", type: "float 0-1", swmm5: "col 6", swmm6: "col 6" },
+    { name: "bmp_eff", type: "float 0-1", swmm5: "col 7", swmm6: "col 7" },
+  ],
+  "[COVERAGES]": [
+    { name: "subcatchment_id", type: "FK subcatchments", swmm5: "col 1", swmm6: "col 1" },
+    { name: "landuse_id", type: "FK landuses", swmm5: "col 2", swmm6: "col 2" },
+    { name: "percent", type: "float 0-100", swmm5: "col 3", swmm6: "col 3" },
+  ],
+  "[LOADINGS]": [
+    { name: "subcatchment_id", type: "FK subcatchments", swmm5: "col 1", swmm6: "col 1" },
+    { name: "pollutant_id", type: "FK pollutants", swmm5: "col 2", swmm6: "col 2" },
+    { name: "initial_load", type: "float lb/acre|kg/ha", swmm5: "col 3", swmm6: "col 3" },
+  ],
+  "[TREATMENT]": [
+    { name: "node_id", type: "FK nodes", swmm5: "col 1", swmm6: "col 1" },
+    { name: "pollutant_id", type: "FK pollutants", swmm5: "col 2", swmm6: "col 2" },
+    { name: "removal_expr", type: "string (verbatim)", swmm5: "cols 3+ (formula)", swmm6: "kept + AST" },
+    { name: "equation_ast", type: "typed AST", swmm5: "— (derived on import)", swmm6: "first-class" },
+  ],
 };
