@@ -302,6 +302,10 @@ function DiffPage() {
         <FailingRowsPanel a={validation.a} b={validation.b} />
       ) : null}
 
+      {(validation.a || validation.b) && (
+        <WaterQualityPanel a={validation.a} b={validation.b} aFile={a} bFile={b} />
+      )}
+
       {diff && (
         <div className="mt-8 space-y-6">
           <SummaryBar
