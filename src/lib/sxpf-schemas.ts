@@ -159,6 +159,30 @@ export const JSON_SCHEMAS: Record<string, unknown> = {
       },
     },
   },
+  "quality.schema.json": {
+    $id: "quality.schema.json",
+    title: "SXPF Water Quality (v1.0, first-class)",
+    type: "object",
+    required: ["schema_version", "pollutants"],
+    properties: {
+      schema_version: { const: "1.0" },
+      pollutants: { $ref: "sxpf.schema.json#/$defs/parquet_ref", description: "quality/pollutants.parquet" },
+      landuses: { $ref: "sxpf.schema.json#/$defs/parquet_ref" },
+      buildup: { $ref: "sxpf.schema.json#/$defs/parquet_ref" },
+      washoff: { $ref: "sxpf.schema.json#/$defs/parquet_ref" },
+      coverages: { $ref: "sxpf.schema.json#/$defs/parquet_ref" },
+      loadings: { $ref: "sxpf.schema.json#/$defs/parquet_ref" },
+      treatment: { $ref: "sxpf.schema.json#/$defs/parquet_ref" },
+      dialect_notes: {
+        type: "object",
+        description: "Fields that differ between SWMM5 and SWMM6 exports",
+        properties: {
+          pollutants_dwf_concen: { enum: ["swmm5:optional-col10", "swmm6:typed-field"] },
+          treatment_equation_ast: { enum: ["swmm5:derived-on-import", "swmm6:first-class"] },
+        },
+      },
+    },
+  },
 };
 
 export type ArrowField = {
