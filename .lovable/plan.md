@@ -343,16 +343,45 @@ Rules enforced by the validator (not just the schema):
 
 ---
 
+## Water quality (v1.0, first-class)
+
+Quality is not deferred to v1.1. The full seven-section surface ships in v1.0:
+
+```text
+.inp section    SXPF target                 Notes
+[POLLUTANTS]    quality/pollutants.parquet  id, units (MG/L | UG/L | #/L), rain/gw/ii/dwf concs,
+                                            decay coefficient, snow-only flag, co-pollutant + fraction
+[LANDUSES]      quality/landuses.parquet    id, sweep interval / availability / last-swept
+[BUILDUP]       quality/buildup.parquet     landuse_id, pollutant_id, func (POW|EXP|SAT|EXT),
+                                            C1/C2/C3, per-unit (AREA|CURB)
+[WASHOFF]       quality/washoff.parquet     landuse_id, pollutant_id, func (EXP|RC|EMC),
+                                            C1/C2, cleaning eff., BMP eff.
+[COVERAGES]     quality/coverages.parquet   subcatchment_id, landuse_id, percent
+[LOADINGS]      quality/loadings.parquet    subcatchment_id, pollutant_id, initial load (lb|kg /acre|ha)
+[TREATMENT]     quality/treatment.parquet   node_id, pollutant_id, removal_expr (verbatim string)
+```
+
+**SWMM5 vs SWMM6.** SWMM5 keeps the seven sections above; SWMM6 adds optional per-pollutant `dwf_concentration` blocks and a typed `treatment.equation_ast` alongside `removal_expr`. The mapping table records both under a shared `quality/` target so exports round-trip either direction — SWMM6-only fields land in `attrs` when exporting to SWMM5, and the validator warns rather than silently drops.
+
+**Referential integrity.** `sxpf check` enforces:
+- `buildup.landuse_id` / `washoff.landuse_id` / `coverages.landuse_id` exist in `landuses.parquet`.
+- `buildup.pollutant_id` / `washoff.pollutant_id` / `loadings.pollutant_id` / `treatment.pollutant_id` exist in `pollutants.parquet`.
+- `coverages` percents per subcatchment sum to ≤100.
+- `treatment.node_id` exists in `nodes.parquet`.
+
+**Conformance harness.** Golden-file diff includes `continuity_error.quality < 1e-6` and per-pollutant peak-concentration delta < 0.5%.
+
 ## Deliverables this lands
 
-1. `docs/inp-mapping.md` — full section-by-section table + profile definitions + golden-file harness spec.
-2. `schemas/sxpf/1.0/*.schema.json` + `parquet-schemas/1.0/*.arrow.json` — published with `$id` URLs.
+1. `docs/inp-mapping.md` — full section-by-section table (including the seven quality sections) + profile definitions + golden-file harness spec.
+2. `schemas/sxpf/1.0/*.schema.json` + `parquet-schemas/1.0/*.arrow.json` — published with `$id` URLs; `quality.schema.json` included in the v1.0 set.
 3. `docs/results-parquet.md` — table DDL, partition layout, writer config, reference queries.
 4. Reference implementation skeleton: `sxpf-cli` (Rust) with `import`, `export`, `check`, `migrate` subcommands, wired to the conformance harness from day one.
 
 ## Open calls for you to make
 
-1. **Quality model in v1 or v1.1?** Drives whether `quality/*.parquet` is in the 1.0 freeze or behind a flag.
+1. ~~**Quality model in v1 or v1.1?**~~ **Resolved:** in v1.0, first-class (see Water quality section).
 2. **Float32 in long-format timeseries** — acceptable, or insist on float64?
 3. **`sample_id` as partition vs column** for ensembles — current draft says column; large ensembles (100k samples) may need it promoted to partition.
 4. **Control-rule AST**: ship the typed AST in 1.0 (breaking from `.inp` text), or keep both with the AST as the canonical form and `original_text` for round-trip? Current draft says both.
+
