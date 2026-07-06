@@ -49,7 +49,7 @@ function checkFile(file) {
   const missing = REQUIRED.filter(
     (label) => !new RegExp(`^\\s*//.*\\b${label}\\b`, "m").test(head),
   );
-  return missing;
+  return { missing };
 }
 
 const files = walk(ROUTES_DIR).filter((f) => {
@@ -59,17 +59,21 @@ const files = walk(ROUTES_DIR).filter((f) => {
 
 const failures = [];
 for (const f of files) {
-  const missing = checkFile(f);
-  if (missing.length) failures.push({ file: relative(ROOT, f), missing });
+  const { missing } = checkFile(f);
+  if (missing.length) failures.push({ file: relative(ROOT, f), line: 1, missing });
 }
 
 if (failures.length) {
   console.error(
     "\n✖ Route header check failed. Every src/routes/*.tsx must start with an\n" +
-      "  Engine · Concept · Reusable comment block (see src/routes/index.tsx).\n",
+      "  Engine · Concept · Reusable comment block (see src/routes/index.tsx).\n\n" +
+      "Expected template (anywhere in the first 40 lines, in // comments):\n" +
+      "  Engine   · <runtime / framework>\n" +
+      "  Concept  · <what this file does>\n" +
+      "  Reusable · <1-2 reusable pieces>\n",
   );
-  for (const { file, missing } of failures) {
-    console.error(`  - ${file}  (missing: ${missing.join(", ")})`);
+  for (const { file, line, missing } of failures) {
+    console.error(`  - ${file}:${line}  (missing: ${missing.join(", ")})`);
   }
   console.error("");
   process.exit(1);
