@@ -68,6 +68,7 @@ function Pre({ children }: { children: string }) {
 function Plan() {
   return (
     <article className="max-w-3xl">
+      <GuidedTour />
       <WhatsNewBanner />
       <div className="mb-2 text-xs font-mono uppercase tracking-widest text-muted-foreground">Design / 2026 → 2030</div>
       <h1 className="text-4xl font-bold tracking-tight">Reimagining SWMM for 2030</h1>
