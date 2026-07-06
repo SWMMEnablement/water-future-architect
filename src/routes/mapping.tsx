@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { OpenSwmmContext } from "@/components/openswmm-context";
 import {
   MAPPING,
   KIND_COLOR,
