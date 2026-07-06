@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { JSON_SCHEMAS, PARQUET_LIST } from "../lib/sxpf-schemas";
+import { OpenSwmmContext } from "@/components/openswmm-context";
 
 export const Route = createFileRoute("/schemas")({
   head: () => ({
@@ -141,6 +142,8 @@ LIMIT 20;`}
           </div>
         </div>
       )}
+
+      <OpenSwmmContext compact />
     </div>
   );
 }

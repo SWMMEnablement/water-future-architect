@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Fragment, useMemo, useState } from "react";
+import { OpenSwmmContext } from "@/components/openswmm-context";
 import { Switch } from "@/components/ui/switch";
 import {
   KIND_COLOR,
@@ -382,6 +383,8 @@ function DiffPage() {
 
         </div>
       )}
+
+      <OpenSwmmContext compact />
     </div>
   );
 }
