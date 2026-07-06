@@ -1,3 +1,9 @@
+// ---------------------------------------------------------------------------
+// Artifact: SXPF JSON Schema + Parquet layout viewer
+//   Engine   · TanStack Start route rendering JSON_SCHEMAS / PARQUET_LIST from src/lib/sxpf-schemas.ts
+//   Concept  · Browsable spec surface for SXPF v1 typed artifacts (topology, forcings, scenarios, WQ)
+//   Reusable · JSON_SCHEMAS registry pattern — one source of truth for schema docs + validation
+// ---------------------------------------------------------------------------
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { JSON_SCHEMAS, PARQUET_LIST } from "../lib/sxpf-schemas";

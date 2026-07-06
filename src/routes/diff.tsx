@@ -1,3 +1,10 @@
+// ---------------------------------------------------------------------------
+// Artifact: SXPF mapping diff / provenance validator
+//   Engine   · TanStack Start route + in-browser CSV export
+//   Concept  · Validate .inp ↔ SXPF provenance on real exports, incl. water quality; expose failing rows
+//   Reusable · "Failing-rows-only" CSV export toggle pattern
+//              Section-scoped provenance check registry (extend by dropping in a new checker)
+// ---------------------------------------------------------------------------
 import { createFileRoute } from "@tanstack/react-router";
 import { Fragment, useMemo, useState } from "react";
 import { OpenSwmmContext } from "@/components/openswmm-context";

@@ -1,3 +1,9 @@
+// ---------------------------------------------------------------------------
+// Artifact: .inp ↔ SXPF section-by-section mapping viewer
+//   Engine   · TanStack Start route + static MAPPING table from src/lib/inp-mapping.ts
+//   Concept  · Human-readable bridge between SWMM5 .inp sections and SXPF v1 artifacts, water quality first-class
+//   Reusable · MAPPING data shape (section → sxpf target → notes) — drives both this UI and diff checks
+// ---------------------------------------------------------------------------
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { OpenSwmmContext } from "@/components/openswmm-context";
