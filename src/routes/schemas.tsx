@@ -142,6 +142,8 @@ LIMIT 20;`}
           </div>
         </div>
       )}
+
+      <OpenSwmmContext compact />
     </div>
   );
 }
