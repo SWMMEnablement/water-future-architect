@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { OpenSwmmContext, GuidedTour } from "@/components/openswmm-context";
 
 const WHATS_NEW_KEY = "swmmx.whatsnew.openswmm-2026";
 
