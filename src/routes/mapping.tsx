@@ -472,6 +472,8 @@ function MappingPage() {
       </div>
 
       <WaterQualityDocs />
+
+      <OpenSwmmContext compact />
     </div>
   );
 }
