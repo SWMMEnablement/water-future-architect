@@ -1,3 +1,10 @@
+// ---------------------------------------------------------------------------
+// Artifact: SWMM-X architecture plan (home)
+//   Engine   · TanStack Start + React 19 + Tailwind v4
+//   Concept  · Design RFC for a 2030-era SWMM: project format, one solver, AI as typed tool surface
+//   Reusable · <GuidedTour /> localStorage-persisted modal walkthrough
+//              <WhatsNewBanner /> dismissible amber "what's new" pattern (localStorage key)
+// ---------------------------------------------------------------------------
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { OpenSwmmContext, GuidedTour } from "@/components/openswmm-context";
