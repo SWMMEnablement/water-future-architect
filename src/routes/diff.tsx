@@ -382,6 +382,8 @@ function DiffPage() {
 
         </div>
       )}
+
+      <OpenSwmmContext compact />
     </div>
   );
 }
