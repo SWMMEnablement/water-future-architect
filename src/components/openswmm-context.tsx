@@ -97,23 +97,20 @@ export function OpenSwmmContext({ compact = false }: { compact?: boolean }) {
 
       {!compact && (
         <div className="mt-4 mb-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className="rounded-md border border-border bg-card p-4">
-            <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Official</div>
-            <div className="mt-1 font-semibold">v5.2.4</div>
-            <div className="mt-1 text-xs text-muted-foreground">Aug 2023 — frozen since EPA ORD was eliminated</div>
-          </div>
-          <div className="rounded-md border border-border bg-card p-4">
-            <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Unofficial roadmap</div>
-            <div className="mt-1 font-semibold">5.3.0 → 6.0.0</div>
-            <div className="mt-1 text-xs text-muted-foreground">Posted Aug 2025 by Caleb Buahin via HydroCouple</div>
-          </div>
-          <div className="rounded-md border border-border bg-card p-4">
-            <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Current branch</div>
-            <div className="mt-1 font-mono text-sm font-semibold">swmm6_rel</div>
-            <div className="mt-1 text-xs text-muted-foreground">v6.0.0-alpha.1 · HydroCouple/openswmm.engine</div>
-          </div>
+          {OPENSWMM_STATUS.map((c) => (
+            <div key={c.id} className="rounded-md border border-border bg-card p-4">
+              <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                {c.kicker}
+              </div>
+              <div className={`mt-1 font-semibold ${c.valueMono ? "font-mono text-sm" : ""}`}>
+                {c.value}
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">{c.detail}</div>
+            </div>
+          ))}
         </div>
       )}
+
 
       <p className="my-3 text-[15px] leading-7 text-foreground/90">
         EPA's Office of Research and Development — the group that housed SWMM development — was
