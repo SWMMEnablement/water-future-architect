@@ -1,12 +1,18 @@
 import { useEffect, useState } from "react";
+import { OPENSWMM_STATUS, OFFICIAL, UNOFFICIAL, BRANCH } from "@/lib/openswmm-status";
 
 // Shared "Where OpenSWMM / SWMM6 stands today" context section.
 // Rendered on the architecture, mapping, schemas, and diff pages so the
 // context travels with any subpage a reader lands on directly.
+//
+// Version strings, dates, and branch names come from @/lib/openswmm-status —
+// the single source of truth for the 3-card status strip. Do not hardcode
+// v5.2.4 / 5.3.0 / 6.0.0 / swmm6_rel here; import from that module instead.
 
 function Code({ children }: { children: React.ReactNode }) {
   return <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[13px]">{children}</code>;
 }
+
 
 type Source = {
   id: string;
