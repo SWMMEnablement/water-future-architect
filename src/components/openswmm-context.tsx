@@ -135,12 +135,13 @@ export function OpenSwmmContext({ compact = false }: { compact?: boolean }) {
         <>
           <h3 className="mt-8 mb-2 text-lg font-semibold tracking-tight">The concrete code state</h3>
           <p className="my-3 text-[15px] leading-7 text-foreground/90">
-            Diffed against the <Code>swmm6_rel</Code> branch<Fn n={4} id="swmm6-rel" />, the delta
-            is substantial: +11,232 / −5,780 lines across 75 shared files, 18 new API headers, 322
-            new C functions, a new <Code>swmm5_stats.c</Code>. A reentrant <Code>SWMM_Engine</Code>{" "}
-            handle replaces the old global-state singleton, and the internal data model is moving
-            toward a Structure-of-Arrays layout.
+            Diffed against the <Code>{BRANCH.value}</Code> branch<Fn n={4} id="swmm6-rel" />, the
+            delta is substantial: +11,232 / −5,780 lines across 75 shared files, 18 new API
+            headers, 322 new C functions, a new <Code>swmm5_stats.c</Code>. A reentrant{" "}
+            <Code>SWMM_Engine</Code> handle replaces the old global-state singleton, and the
+            internal data model is moving toward a Structure-of-Arrays layout.
           </p>
+
 
           <h3 className="mt-8 mb-2 text-lg font-semibold tracking-tight">Packaging is pre-release</h3>
           <p className="my-3 text-[15px] leading-7 text-foreground/90">
