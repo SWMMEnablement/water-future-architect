@@ -1,12 +1,18 @@
 import { useEffect, useState } from "react";
+import { OPENSWMM_STATUS, OFFICIAL, UNOFFICIAL, BRANCH } from "@/lib/openswmm-status";
 
 // Shared "Where OpenSWMM / SWMM6 stands today" context section.
 // Rendered on the architecture, mapping, schemas, and diff pages so the
 // context travels with any subpage a reader lands on directly.
+//
+// Version strings, dates, and branch names come from @/lib/openswmm-status —
+// the single source of truth for the 3-card status strip. Do not hardcode
+// v5.2.4 / 5.3.0 / 6.0.0 / swmm6_rel here; import from that module instead.
 
 function Code({ children }: { children: React.ReactNode }) {
   return <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[13px]">{children}</code>;
 }
+
 
 type Source = {
   id: string;
@@ -91,51 +97,51 @@ export function OpenSwmmContext({ compact = false }: { compact?: boolean }) {
 
       {!compact && (
         <div className="mt-4 mb-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className="rounded-md border border-border bg-card p-4">
-            <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Official</div>
-            <div className="mt-1 font-semibold">v5.2.4</div>
-            <div className="mt-1 text-xs text-muted-foreground">Aug 2023 — frozen since EPA ORD was eliminated</div>
-          </div>
-          <div className="rounded-md border border-border bg-card p-4">
-            <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Unofficial roadmap</div>
-            <div className="mt-1 font-semibold">5.3.0 → 6.0.0</div>
-            <div className="mt-1 text-xs text-muted-foreground">Posted Aug 2025 by Caleb Buahin via HydroCouple</div>
-          </div>
-          <div className="rounded-md border border-border bg-card p-4">
-            <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Current branch</div>
-            <div className="mt-1 font-mono text-sm font-semibold">swmm6_rel</div>
-            <div className="mt-1 text-xs text-muted-foreground">v6.0.0-alpha.1 · HydroCouple/openswmm.engine</div>
-          </div>
+          {OPENSWMM_STATUS.map((c) => (
+            <div key={c.id} className="rounded-md border border-border bg-card p-4">
+              <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                {c.kicker}
+              </div>
+              <div className={`mt-1 font-semibold ${c.valueMono ? "font-mono text-sm" : ""}`}>
+                {c.value}
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">{c.detail}</div>
+            </div>
+          ))}
         </div>
       )}
+
 
       <p className="my-3 text-[15px] leading-7 text-foreground/90">
         EPA's Office of Research and Development — the group that housed SWMM development — was
         eliminated in 2025<Fn n={1} id="epa-ord" />. Caleb Buahin, the engineer maintaining SWMM
         inside EPA, left for Hazen and Sawyer. The official{" "}
-        <Code>USEPA/Stormwater-Management-Model</Code> repository still shows <Code>v5.2.4</Code>{" "}
-        (August 2023) as its most recent tagged release<Fn n={2} id="usepa-repo" />. There is no
-        v5.3 or v6 from EPA, and there is unlikely to be one.
+        <Code>USEPA/Stormwater-Management-Model</Code> repository still shows{" "}
+        <Code>{OFFICIAL.value}</Code> (August 2023) as its most recent tagged release
+        <Fn n={2} id="usepa-repo" />. There is no v5.3 or v6 from EPA, and there is unlikely to be one.
       </p>
       <p className="my-3 text-[15px] leading-7 text-foreground/90">
         The engine work moved. Buahin is continuing open-source development through the{" "}
         <Code>HydroCouple</Code> GitHub organization<Fn n={3} id="hydrocouple" />, targeting an
-        unofficial <Code>5.3.0</Code> and then <Code>6.0.0</Code>: multi-platform builds, better
-        routing efficiency, a wider Python API, CSV support, and — deliberately — no QGIS as the
-        primary GUI, keeping the engine free of heavy external dependencies.
+        unofficial <Code>5.3.0</Code> and then <Code>6.0.0</Code> ({UNOFFICIAL.value}):
+        multi-platform builds, better routing efficiency, a wider Python API, CSV support, and —
+        deliberately — no QGIS as the primary GUI, keeping the engine free of heavy external
+        dependencies.
       </p>
+
 
 
       {!compact && (
         <>
           <h3 className="mt-8 mb-2 text-lg font-semibold tracking-tight">The concrete code state</h3>
           <p className="my-3 text-[15px] leading-7 text-foreground/90">
-            Diffed against the <Code>swmm6_rel</Code> branch<Fn n={4} id="swmm6-rel" />, the delta
-            is substantial: +11,232 / −5,780 lines across 75 shared files, 18 new API headers, 322
-            new C functions, a new <Code>swmm5_stats.c</Code>. A reentrant <Code>SWMM_Engine</Code>{" "}
-            handle replaces the old global-state singleton, and the internal data model is moving
-            toward a Structure-of-Arrays layout.
+            Diffed against the <Code>{BRANCH.value}</Code> branch<Fn n={4} id="swmm6-rel" />, the
+            delta is substantial: +11,232 / −5,780 lines across 75 shared files, 18 new API
+            headers, 322 new C functions, a new <Code>swmm5_stats.c</Code>. A reentrant{" "}
+            <Code>SWMM_Engine</Code> handle replaces the old global-state singleton, and the
+            internal data model is moving toward a Structure-of-Arrays layout.
           </p>
+
 
           <h3 className="mt-8 mb-2 text-lg font-semibold tracking-tight">Packaging is pre-release</h3>
           <p className="my-3 text-[15px] leading-7 text-foreground/90">
