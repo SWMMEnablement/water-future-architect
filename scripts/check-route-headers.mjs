@@ -14,7 +14,10 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
 const ROOT = new URL("..", import.meta.url).pathname;
-const ROUTES_DIR = join(ROOT, "src/routes");
+// ROUTES_DIR_OVERRIDE lets tests point the checker at a fixture directory.
+const ROUTES_DIR = process.env.ROUTES_DIR_OVERRIDE
+  ? process.env.ROUTES_DIR_OVERRIDE
+  : join(ROOT, "src/routes");
 
 // Files that are framework-owned or shell files — exempt from the rule.
 const EXEMPT = new Set([
