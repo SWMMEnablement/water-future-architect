@@ -116,17 +116,19 @@ export function OpenSwmmContext({ compact = false }: { compact?: boolean }) {
         EPA's Office of Research and Development — the group that housed SWMM development — was
         eliminated in 2025<Fn n={1} id="epa-ord" />. Caleb Buahin, the engineer maintaining SWMM
         inside EPA, left for Hazen and Sawyer. The official{" "}
-        <Code>USEPA/Stormwater-Management-Model</Code> repository still shows <Code>v5.2.4</Code>{" "}
-        (August 2023) as its most recent tagged release<Fn n={2} id="usepa-repo" />. There is no
-        v5.3 or v6 from EPA, and there is unlikely to be one.
+        <Code>USEPA/Stormwater-Management-Model</Code> repository still shows{" "}
+        <Code>{OFFICIAL.value}</Code> (August 2023) as its most recent tagged release
+        <Fn n={2} id="usepa-repo" />. There is no v5.3 or v6 from EPA, and there is unlikely to be one.
       </p>
       <p className="my-3 text-[15px] leading-7 text-foreground/90">
         The engine work moved. Buahin is continuing open-source development through the{" "}
         <Code>HydroCouple</Code> GitHub organization<Fn n={3} id="hydrocouple" />, targeting an
-        unofficial <Code>5.3.0</Code> and then <Code>6.0.0</Code>: multi-platform builds, better
-        routing efficiency, a wider Python API, CSV support, and — deliberately — no QGIS as the
-        primary GUI, keeping the engine free of heavy external dependencies.
+        unofficial <Code>5.3.0</Code> and then <Code>6.0.0</Code> ({UNOFFICIAL.value}):
+        multi-platform builds, better routing efficiency, a wider Python API, CSV support, and —
+        deliberately — no QGIS as the primary GUI, keeping the engine free of heavy external
+        dependencies.
       </p>
+
 
 
       {!compact && (
