@@ -85,6 +85,21 @@ function Plan() {
         product instead of three bolted together.
       </P>
 
+      <nav aria-label="Contents" className="mt-6 flex flex-wrap gap-x-5 gap-y-1.5 border-y border-border py-3 text-[13px] text-muted-foreground">
+        {[
+          ["thesis", "Thesis"],
+          ["openswmm", "OpenSWMM / SWMM6 status"],
+          ["pillars", "Three pillars"],
+          ["deliverables", "Deliverables"],
+          ["non-goals", "Non-goals"],
+          ["open", "Open calls"],
+        ].map(([id, label]) => (
+          <a key={id} href={`#${id}`} className="hover:text-foreground hover:underline underline-offset-4">
+            {label}
+          </a>
+        ))}
+      </nav>
+
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
         {[
           ["Format", "SXPF — diffable, queryable, .inp round-trip"],
@@ -97,6 +112,7 @@ function Plan() {
           </div>
         ))}
       </div>
+
 
       <H2 id="thesis">Thesis</H2>
       <P>
@@ -178,6 +194,11 @@ function Plan() {
         <li><Code>sample_id</Code> as partition vs column for large ensembles.</li>
         <li>Control-rule AST: replace <Code>.inp</Code> text or keep both.</li>
       </ol>
+
+      <footer className="mt-16 border-t border-border pt-5 text-[12.5px] text-muted-foreground">
+        Document history: base architecture RFC via Lovable · OpenSWMM / SWMM6 status section
+        added July 5, 2026 · guided tour + subpage context added July 10, 2026.
+      </footer>
     </article>
   );
 }
