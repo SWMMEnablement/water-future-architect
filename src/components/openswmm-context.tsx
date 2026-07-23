@@ -55,7 +55,7 @@ export const OPENSWMM_SOURCES: Source[] = [
   },
   {
     id: "openswmm-pypi",
-    label: `openswmm ${UPCOMING_VERSIONS[0]}.dev1 on PyPI`,
+    label: `openswmm 6.0.0a2 on PyPI (Jul 7 2026)`,
     url: "https://pypi.org/project/openswmm/",
   },
   {
