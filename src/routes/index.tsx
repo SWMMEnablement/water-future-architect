@@ -77,7 +77,15 @@ function Plan() {
     <article className="max-w-3xl">
       <GuidedTour />
       <WhatsNewBanner />
-      <div className="mb-2 text-xs font-mono uppercase tracking-widest text-muted-foreground">Design / 2026 → 2030</div>
+      <div className="mb-2 flex flex-wrap items-center gap-2 text-xs font-mono uppercase tracking-widest text-muted-foreground">
+        <span>Design / 2026 → 2030</span>
+        <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-300">
+          Draft RFC · not implemented
+        </span>
+        <span className="rounded border border-border bg-muted/40 px-1.5 py-0.5 text-[10px] text-foreground/70">
+          Verified 2026-07-23
+        </span>
+      </div>
       <h1 className="text-4xl font-bold tracking-tight">Reimagining SWMM for 2030</h1>
       <P>
         A senior-architect answer to <em>"design a SWMM that's better for 2030"</em>. The goal is not a faster
