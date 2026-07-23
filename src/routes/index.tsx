@@ -207,15 +207,20 @@ function Plan() {
       <H2 id="open">Open calls</H2>
       <P>Decisions that need a human before the v1.0 freeze:</P>
       <ol className="my-3 list-decimal space-y-1 pl-6 text-[15px] leading-7 text-foreground/90">
-        <li>Water quality in v1.0 or v1.1?</li>
         <li>float32 vs float64 in long-format timeseries.</li>
         <li><Code>sample_id</Code> as partition vs column for large ensembles.</li>
         <li>Control-rule AST: replace <Code>.inp</Code> text or keep both.</li>
+        <li>Governance: SXPF as vendor format vs neutral interchange standard.</li>
       </ol>
+      <P className="text-muted-foreground">
+        <em>Resolved:</em> water quality ships first-class in v1.0 (pollutants, land uses,
+        buildup/washoff, coverages, loadings, treatment) — no longer an open call.
+      </P>
 
       <footer className="mt-16 border-t border-border pt-5 text-[12.5px] text-muted-foreground">
         Document history: base architecture RFC via Lovable · OpenSWMM / SWMM6 status section
-        added July 5, 2026 · guided tour + subpage context added July 10, 2026.
+        added July 5, 2026 · guided tour + subpage context added July 10, 2026 · reproducibility
+        tiers + hybrid-solver clarification + WQ resolution added July 23, 2026.
       </footer>
     </article>
   );
