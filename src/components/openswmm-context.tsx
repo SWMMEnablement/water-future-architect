@@ -152,7 +152,7 @@ export function OpenSwmmContext({ compact = false }: { compact?: boolean }) {
 
           <h3 className="mt-8 mb-2 text-lg font-semibold tracking-tight">Packaging is pre-release</h3>
           <p className="my-3 text-[15px] leading-7 text-foreground/90">
-            <Code>openswmm</Code> sits at <Code>{UPCOMING_VERSIONS[0]}.dev1</Code> on PyPI
+            <Code>openswmm</Code> sits at <Code>6.0.0a2</Code> on PyPI (released Jul 7 2026)
             <Fn n={5} id="openswmm-pypi" />; <Code>epaswmm</Code> is still alpha, awaiting EPA's
             own QA clearance<Fn n={6} id="epaswmm-pypi" />.
           </p>
