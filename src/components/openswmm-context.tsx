@@ -31,9 +31,9 @@ type Source = {
 export const OPENSWMM_SOURCES: Source[] = [
   {
     id: "epa-ord",
-    label: "EPA ORD elimination — E&E News / Reuters coverage, 2025",
+    label: "EPA ORD 2025 reorganization / RIF — Reuters coverage",
     url: "https://www.reuters.com/business/environment/trump-administration-fires-hundreds-epa-scientists-2025-07-18/",
-    note: "Reporting on the RIF of EPA's Office of Research and Development staff.",
+    note: "Reporting on the reduction in force and reorganization of ORD staff and functions.",
   },
   {
     id: "usepa-repo",
