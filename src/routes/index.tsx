@@ -212,10 +212,10 @@ function Plan() {
         <li>Control-rule AST: replace <Code>.inp</Code> text or keep both.</li>
         <li>Governance: SXPF as vendor format vs neutral interchange standard.</li>
       </ol>
-      <P className="text-muted-foreground">
+      <p className="my-3 text-[13.5px] leading-7 text-muted-foreground">
         <em>Resolved:</em> water quality ships first-class in v1.0 (pollutants, land uses,
         buildup/washoff, coverages, loadings, treatment) — no longer an open call.
-      </P>
+      </p>
 
       <footer className="mt-16 border-t border-border pt-5 text-[12.5px] text-muted-foreground">
         Document history: base architecture RFC via Lovable · OpenSWMM / SWMM6 status section
