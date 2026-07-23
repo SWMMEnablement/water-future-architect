@@ -111,8 +111,8 @@ function Plan() {
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
         {[
           ["Format", "SXPF — diffable, queryable, .inp round-trip"],
-          ["Runtime", "Same kernel local / cloud / GPU"],
-          ["Data", "Zarr cube + Parquet analytics, one writer"],
+          ["Runtime", "One kernel: desktop lib · cloud daemon · WASM preview"],
+          ["Data", "Zarr cube + Parquet analytics, staged commit"],
         ].map(([k, v]) => (
           <div key={k} className="rounded-md border border-border bg-card p-4">
             <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">{k}</div>
