@@ -261,8 +261,8 @@ const STEPS: Step[] = [
     title: "Where OpenSWMM / SWMM6 actually stands",
     body: (
       <>
-        EPA ORD was eliminated in 2025 and the official repo is frozen at {OFFICIAL.value}. Buahin's
-        unofficial {UPCOMING_VERSIONS[0]}/{UPCOMING_VERSIONS[1]} line lives in the HydroCouple org.
+        EPA ORD was reorganized / RIF'd in 2025 and the official repo is frozen at {OFFICIAL.value}.
+        Buahin's unofficial {UPCOMING_VERSIONS[0]}/{UPCOMING_VERSIONS[1]} line lives in the HydroCouple org.
         Full footnoted context is in the next section — this is what makes the SXPF gap bigger than
         it was six months ago.
       </>
