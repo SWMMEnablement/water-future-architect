@@ -77,7 +77,15 @@ function Plan() {
     <article className="max-w-3xl">
       <GuidedTour />
       <WhatsNewBanner />
-      <div className="mb-2 text-xs font-mono uppercase tracking-widest text-muted-foreground">Design / 2026 → 2030</div>
+      <div className="mb-2 flex flex-wrap items-center gap-2 text-xs font-mono uppercase tracking-widest text-muted-foreground">
+        <span>Design / 2026 → 2030</span>
+        <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-300">
+          Draft RFC · not implemented
+        </span>
+        <span className="rounded border border-border bg-muted/40 px-1.5 py-0.5 text-[10px] text-foreground/70">
+          Verified 2026-07-23
+        </span>
+      </div>
       <h1 className="text-4xl font-bold tracking-tight">Reimagining SWMM for 2030</h1>
       <P>
         A senior-architect answer to <em>"design a SWMM that's better for 2030"</em>. The goal is not a faster
@@ -103,8 +111,8 @@ function Plan() {
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
         {[
           ["Format", "SXPF — diffable, queryable, .inp round-trip"],
-          ["Runtime", "Same kernel local / cloud / GPU"],
-          ["Data", "Zarr cube + Parquet analytics, one writer"],
+          ["Runtime", "One kernel: desktop lib · cloud daemon · WASM preview"],
+          ["Data", "Zarr cube + Parquet analytics, staged commit"],
         ].map(([k, v]) => (
           <div key={k} className="rounded-md border border-border bg-card p-4">
             <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">{k}</div>
@@ -149,11 +157,21 @@ function Plan() {
     ├── results.zarr/       # the numerics cube
     └── parquet/            # analytics surface (same data)`}</Pre>
 
-      <H3>2. One solver, three runtimes</H3>
+      <H3>2. One solver, three runtimes — with reproducibility tiers</H3>
       <P>
-        Solver is a Rust core compiled to (a) a desktop library, (b) a Linux daemon for cloud, (c) WASM for
-        in-browser previews. Same kernel, same bit-equivalent results, selected at call time. The desktop app
-        becomes a thin client that can offload to cloud without a different code path.
+        Hybrid: the numerical kernel stays the existing C/C++ St. Venant engine (wrapped behind a stable
+        C ABI); Rust owns orchestration, validation, storage, and the service layer. That kernel compiles
+        to (a) a desktop library, (b) a Linux daemon for cloud, (c) WASM for in-browser previews. The
+        desktop app becomes a thin client that can offload to cloud without a different code path.
+      </P>
+      <P>
+        We don't promise universal bit-equivalence — floating-point across OS, compiler, and SIMD makes
+        that a trap. Instead, every run declares a reproducibility tier:
+        <Code>R0</Code> bit-identical same host,
+        <Code>R1</Code> bit-identical same arch + compiler profile,
+        <Code>R2</Code> cross-platform within declared tolerances,
+        <Code>R3</Code> engineering-equivalent (event classifications match).
+        Regulatory runs pin R0/R1; browser previews and ensembles use R2/R3.
       </P>
 
       <H3>3. AI as a typed surface, not a chatbot</H3>
@@ -189,15 +207,20 @@ function Plan() {
       <H2 id="open">Open calls</H2>
       <P>Decisions that need a human before the v1.0 freeze:</P>
       <ol className="my-3 list-decimal space-y-1 pl-6 text-[15px] leading-7 text-foreground/90">
-        <li>Water quality in v1.0 or v1.1?</li>
         <li>float32 vs float64 in long-format timeseries.</li>
         <li><Code>sample_id</Code> as partition vs column for large ensembles.</li>
         <li>Control-rule AST: replace <Code>.inp</Code> text or keep both.</li>
+        <li>Governance: SXPF as vendor format vs neutral interchange standard.</li>
       </ol>
+      <p className="my-3 text-[13.5px] leading-7 text-muted-foreground">
+        <em>Resolved:</em> water quality ships first-class in v1.0 (pollutants, land uses,
+        buildup/washoff, coverages, loadings, treatment) — no longer an open call.
+      </p>
 
       <footer className="mt-16 border-t border-border pt-5 text-[12.5px] text-muted-foreground">
         Document history: base architecture RFC via Lovable · OpenSWMM / SWMM6 status section
-        added July 5, 2026 · guided tour + subpage context added July 10, 2026.
+        added July 5, 2026 · guided tour + subpage context added July 10, 2026 · reproducibility
+        tiers + hybrid-solver clarification + WQ resolution added July 23, 2026.
       </footer>
     </article>
   );

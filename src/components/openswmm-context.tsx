@@ -31,9 +31,9 @@ type Source = {
 export const OPENSWMM_SOURCES: Source[] = [
   {
     id: "epa-ord",
-    label: "EPA ORD elimination — E&E News / Reuters coverage, 2025",
+    label: "EPA ORD 2025 reorganization / RIF — Reuters coverage",
     url: "https://www.reuters.com/business/environment/trump-administration-fires-hundreds-epa-scientists-2025-07-18/",
-    note: "Reporting on the RIF of EPA's Office of Research and Development staff.",
+    note: "Reporting on the reduction in force and reorganization of ORD staff and functions.",
   },
   {
     id: "usepa-repo",
@@ -55,7 +55,7 @@ export const OPENSWMM_SOURCES: Source[] = [
   },
   {
     id: "openswmm-pypi",
-    label: `openswmm ${UPCOMING_VERSIONS[0]}.dev1 on PyPI`,
+    label: `openswmm 6.0.0a2 on PyPI (Jul 7 2026)`,
     url: "https://pypi.org/project/openswmm/",
   },
   {
@@ -152,7 +152,7 @@ export function OpenSwmmContext({ compact = false }: { compact?: boolean }) {
 
           <h3 className="mt-8 mb-2 text-lg font-semibold tracking-tight">Packaging is pre-release</h3>
           <p className="my-3 text-[15px] leading-7 text-foreground/90">
-            <Code>openswmm</Code> sits at <Code>{UPCOMING_VERSIONS[0]}.dev1</Code> on PyPI
+            <Code>openswmm</Code> sits at <Code>6.0.0a2</Code> on PyPI (released Jul 7 2026)
             <Fn n={5} id="openswmm-pypi" />; <Code>epaswmm</Code> is still alpha, awaiting EPA's
             own QA clearance<Fn n={6} id="epaswmm-pypi" />.
           </p>
@@ -261,8 +261,8 @@ const STEPS: Step[] = [
     title: "Where OpenSWMM / SWMM6 actually stands",
     body: (
       <>
-        EPA ORD was eliminated in 2025 and the official repo is frozen at {OFFICIAL.value}. Buahin's
-        unofficial {UPCOMING_VERSIONS[0]}/{UPCOMING_VERSIONS[1]} line lives in the HydroCouple org.
+        EPA ORD was reorganized / RIF'd in 2025 and the official repo is frozen at {OFFICIAL.value}.
+        Buahin's unofficial {UPCOMING_VERSIONS[0]}/{UPCOMING_VERSIONS[1]} line lives in the HydroCouple org.
         Full footnoted context is in the next section — this is what makes the SXPF gap bigger than
         it was six months ago.
       </>
