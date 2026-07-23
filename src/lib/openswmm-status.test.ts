@@ -21,7 +21,7 @@ test("OFFICIAL card matches expected snapshot", () => {
     id: "official",
     kicker: "Official",
     value: "v5.2.4",
-    detail: "Aug 2023 — frozen since EPA ORD was eliminated",
+    detail: "Aug 2023 — frozen after EPA ORD 2025 reorganization / RIF",
   });
 });
 
@@ -30,7 +30,7 @@ test("UNOFFICIAL card matches expected snapshot", () => {
     id: "unofficial",
     kicker: "Unofficial roadmap",
     value: "5.3.0 → 6.0.0",
-    detail: "Posted Aug 2025 by Caleb Buahin via HydroCouple",
+    detail: "openswmm 6.0.0a2 on PyPI (Jul 7 2026) · Buahin / HydroCouple",
   });
 });
 
@@ -40,7 +40,7 @@ test("BRANCH card matches expected snapshot", () => {
     kicker: "Current branch",
     value: "swmm6_rel",
     valueMono: true,
-    detail: "v6.0.0-alpha.1 · HydroCouple/openswmm.engine",
+    detail: "v6.0.0-alpha.2 · HydroCouple/openswmm.engine",
   });
 });
 
