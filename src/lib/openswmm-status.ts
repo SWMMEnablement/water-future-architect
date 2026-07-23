@@ -5,7 +5,8 @@
 //   these strings should import from here rather than re-typing them.
 // Reusable: OPENSWMM_STATUS (typed StatusCard[]), OFFICIAL / UNOFFICIAL /
 //   BRANCH exports, OFFICIAL_VERSION_NUMBER + UPCOMING_VERSIONS helpers,
-//   and the zod schema for CI / consumer validation.
+//   and the exported zod schema + input/output types for CI / consumer
+//   validation.
 
 import { z } from "zod";
 
@@ -18,6 +19,8 @@ export const StatusCardSchema = z.object({
 });
 
 export type StatusCard = z.infer<typeof StatusCardSchema>;
+export type StatusCardInput = z.input<typeof StatusCardSchema>;
+export type StatusCardSchemaType = typeof StatusCardSchema;
 
 const OFFICIAL_RAW: StatusCard = {
   id: "official",
