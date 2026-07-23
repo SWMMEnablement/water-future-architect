@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
-import { OPENSWMM_STATUS, OFFICIAL, UNOFFICIAL, BRANCH } from "@/lib/openswmm-status";
+import {
+  OPENSWMM_STATUS,
+  OFFICIAL,
+  UNOFFICIAL,
+  BRANCH,
+  OFFICIAL_VERSION_NUMBER,
+  UPCOMING_VERSIONS,
+} from "@/lib/openswmm-status";
 
 // Shared "Where OpenSWMM / SWMM6 stands today" context section.
 // Rendered on the architecture, mapping, schemas, and diff pages so the
@@ -30,25 +37,25 @@ export const OPENSWMM_SOURCES: Source[] = [
   },
   {
     id: "usepa-repo",
-    label: "USEPA/Stormwater-Management-Model — v5.2.4 release (Aug 2023)",
-    url: "https://github.com/USEPA/Stormwater-Management-Model/releases/tag/v5.2.4",
+    label: `USEPA/Stormwater-Management-Model — ${OFFICIAL.value} release (Aug 2023)`,
+    url: `https://github.com/USEPA/Stormwater-Management-Model/releases/tag/${OFFICIAL.value}`,
     note: "Most recent tagged release on the official EPA repository.",
   },
   {
     id: "hydrocouple",
     label: "HydroCouple GitHub organization",
     url: "https://github.com/hydrocouple",
-    note: "Caleb Buahin's org hosting the unofficial 5.3 / 6.0 line of SWMM.",
+    note: `Caleb Buahin's org hosting the unofficial ${UPCOMING_VERSIONS[0]} / ${UPCOMING_VERSIONS[1]} line of SWMM.`,
   },
   {
     id: "swmm6-rel",
-    label: "HydroCouple/Stormwater-Management-Model — swmm6_rel branch",
-    url: "https://github.com/hydrocouple/Stormwater-Management-Model/tree/swmm6_rel",
+    label: `HydroCouple/Stormwater-Management-Model — ${BRANCH.value} branch`,
+    url: `https://github.com/hydrocouple/Stormwater-Management-Model/tree/${BRANCH.value}`,
     note: "Source of the +11,232 / −5,780 line diff, SWMM_Engine handle, and swmm5_stats.c.",
   },
   {
     id: "openswmm-pypi",
-    label: "openswmm 5.3.0.dev1 on PyPI",
+    label: `openswmm ${UPCOMING_VERSIONS[0]}.dev1 on PyPI`,
     url: "https://pypi.org/project/openswmm/",
   },
   {
@@ -58,7 +65,7 @@ export const OPENSWMM_SOURCES: Source[] = [
   },
   {
     id: "pyswmm",
-    label: "OWA pyswmm — runs on frozen 5.2.4",
+    label: `OWA pyswmm — runs on frozen ${OFFICIAL_VERSION_NUMBER}`,
     url: "https://github.com/OpenWaterAnalytics/pyswmm",
   },
   {
@@ -123,10 +130,10 @@ export function OpenSwmmContext({ compact = false }: { compact?: boolean }) {
       <p className="my-3 text-[15px] leading-7 text-foreground/90">
         The engine work moved. Buahin is continuing open-source development through the{" "}
         <Code>HydroCouple</Code> GitHub organization<Fn n={3} id="hydrocouple" />, targeting an
-        unofficial <Code>5.3.0</Code> and then <Code>6.0.0</Code> ({UNOFFICIAL.value}):
-        multi-platform builds, better routing efficiency, a wider Python API, CSV support, and —
-        deliberately — no QGIS as the primary GUI, keeping the engine free of heavy external
-        dependencies.
+        unofficial <Code>{UPCOMING_VERSIONS[0]}</Code> and then <Code>{UPCOMING_VERSIONS[1]}</Code>{" "}
+        ({UNOFFICIAL.value}): multi-platform builds, better routing efficiency, a wider Python API,
+        CSV support, and — deliberately — no QGIS as the primary GUI, keeping the engine free of
+        heavy external dependencies.
       </p>
 
 
@@ -145,7 +152,7 @@ export function OpenSwmmContext({ compact = false }: { compact?: boolean }) {
 
           <h3 className="mt-8 mb-2 text-lg font-semibold tracking-tight">Packaging is pre-release</h3>
           <p className="my-3 text-[15px] leading-7 text-foreground/90">
-            <Code>openswmm</Code> sits at <Code>5.3.0.dev1</Code> on PyPI
+            <Code>openswmm</Code> sits at <Code>{UPCOMING_VERSIONS[0]}.dev1</Code> on PyPI
             <Fn n={5} id="openswmm-pypi" />; <Code>epaswmm</Code> is still alpha, awaiting EPA's
             own QA clearance<Fn n={6} id="epaswmm-pypi" />.
           </p>
@@ -157,8 +164,9 @@ export function OpenSwmmContext({ compact = false }: { compact?: boolean }) {
               OpenSWMM<Fn n={7} id="swmm5plus" />.
             </li>
             <li>
-              <strong>OWA's <Code>pyswmm</Code></strong> runs on the frozen 5.2.4 engine and is
-              not part of the 5.3/6.0 line<Fn n={8} id="pyswmm" />.
+              <strong>OWA's <Code>pyswmm</Code></strong> runs on the frozen {OFFICIAL_VERSION_NUMBER}{" "}
+              engine and is not part of the {UPCOMING_VERSIONS[0]}/{UPCOMING_VERSIONS[1]} line
+              <Fn n={8} id="pyswmm" />.
             </li>
             <li>
               <strong>CHI's "OpenSWMM"</strong> — a public-domain fork shipped in 2017 — reuses
@@ -172,7 +180,7 @@ export function OpenSwmmContext({ compact = false }: { compact?: boolean }) {
       )}
 
       <div className="my-6 rounded-md border-l-2 border-accent bg-accent/5 py-2 pl-4 pr-3 text-[14.5px] leading-7 text-foreground/90">
-        <strong>Bridge:</strong> the 6.0.0-alpha work rewrites the engine's <em>internals</em> and{" "}
+        <strong>Bridge:</strong> the {UPCOMING_VERSIONS[1]}-alpha work rewrites the engine's <em>internals</em> and{" "}
         <em>packaging</em> — reentrancy, SoA layout, Python API, CSV I/O. It does not rewrite the
         project format or single-machine execution model. Those are the gaps SXPF, a shared
         runtime, and a typed AI surface target.
@@ -253,9 +261,10 @@ const STEPS: Step[] = [
     title: "Where OpenSWMM / SWMM6 actually stands",
     body: (
       <>
-        EPA ORD was eliminated in 2025 and the official repo is frozen at v5.2.4. Buahin's
-        unofficial 5.3/6.0 line lives in the HydroCouple org. Full footnoted context is in the
-        next section — this is what makes the SXPF gap bigger than it was six months ago.
+        EPA ORD was eliminated in 2025 and the official repo is frozen at {OFFICIAL.value}. Buahin's
+        unofficial {UPCOMING_VERSIONS[0]}/{UPCOMING_VERSIONS[1]} line lives in the HydroCouple org.
+        Full footnoted context is in the next section — this is what makes the SXPF gap bigger than
+        it was six months ago.
       </>
     ),
     anchor: "openswmm",
