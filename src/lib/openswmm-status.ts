@@ -19,6 +19,8 @@ export const StatusCardSchema = z.object({
 });
 
 export type StatusCard = z.infer<typeof StatusCardSchema>;
+export type StatusCardInput = z.input<typeof StatusCardSchema>;
+export type StatusCardSchemaType = typeof StatusCardSchema;
 
 const OFFICIAL_RAW: StatusCard = {
   id: "official",
