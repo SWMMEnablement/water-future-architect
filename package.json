@@ -11,6 +11,8 @@
     "lint": "eslint . && bun run check:headers",
     "check:headers": "node scripts/check-route-headers.mjs",
     "test:headers": "node --test scripts/check-route-headers.test.mjs",
+    "test:unit": "bun test src",
+    "test": "bun run test:headers && bun run test:unit",
     "format": "prettier --write ."
   },
   "dependencies": {
