@@ -157,11 +157,21 @@ function Plan() {
     ├── results.zarr/       # the numerics cube
     └── parquet/            # analytics surface (same data)`}</Pre>
 
-      <H3>2. One solver, three runtimes</H3>
+      <H3>2. One solver, three runtimes — with reproducibility tiers</H3>
       <P>
-        Solver is a Rust core compiled to (a) a desktop library, (b) a Linux daemon for cloud, (c) WASM for
-        in-browser previews. Same kernel, same bit-equivalent results, selected at call time. The desktop app
-        becomes a thin client that can offload to cloud without a different code path.
+        Hybrid: the numerical kernel stays the existing C/C++ St. Venant engine (wrapped behind a stable
+        C ABI); Rust owns orchestration, validation, storage, and the service layer. That kernel compiles
+        to (a) a desktop library, (b) a Linux daemon for cloud, (c) WASM for in-browser previews. The
+        desktop app becomes a thin client that can offload to cloud without a different code path.
+      </P>
+      <P>
+        We don't promise universal bit-equivalence — floating-point across OS, compiler, and SIMD makes
+        that a trap. Instead, every run declares a reproducibility tier:
+        <Code>R0</Code> bit-identical same host,
+        <Code>R1</Code> bit-identical same arch + compiler profile,
+        <Code>R2</Code> cross-platform within declared tolerances,
+        <Code>R3</Code> engineering-equivalent (event classifications match).
+        Regulatory runs pin R0/R1; browser previews and ensembles use R2/R3.
       </P>
 
       <H3>3. AI as a typed surface, not a chatbot</H3>
