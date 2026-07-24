@@ -5,8 +5,18 @@
 //   Reusable · JSON_SCHEMAS registry pattern — one source of truth for schema docs + validation
 // ---------------------------------------------------------------------------
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { JSON_SCHEMAS, PARQUET_LIST } from "../lib/sxpf-schemas";
+import { useMemo, useState } from "react";
+import {
+  JSON_SCHEMAS,
+  PARQUET_LIST,
+  CANONICAL_UNITS,
+  CANONICAL_CRS,
+  CANONICAL_TIMESTAMPS,
+  FOREIGN_KEYS,
+  SXPF_SCHEMA_VERSION,
+  SXPF_BUNDLE_REVISION,
+  buildCanonicalBundle,
+} from "../lib/sxpf-schemas";
 import { OpenSwmmContext } from "@/components/openswmm-context";
 
 export const Route = createFileRoute("/schemas")({
@@ -19,13 +29,34 @@ export const Route = createFileRoute("/schemas")({
   component: SchemasPage,
 });
 
-type Tab = "json" | "parquet";
+type Tab = "json" | "parquet" | "canonical";
+
+function downloadBlob(filename: string, mime: string, data: string) {
+  const blob = new Blob([data], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
 
 function SchemasPage() {
-  const [tab, setTab] = useState<Tab>("json");
+  const [tab, setTab] = useState<Tab>("canonical");
   const jsonKeys = Object.keys(JSON_SCHEMAS);
   const [activeJson, setActiveJson] = useState<string>(jsonKeys[0]);
   const [activeTable, setActiveTable] = useState<string>(PARQUET_LIST[0].name);
+  const bundle = useMemo(() => buildCanonicalBundle(), []);
+
+  const downloadBundle = () =>
+    downloadBlob(`sxpf-canonical-${SXPF_SCHEMA_VERSION}-${SXPF_BUNDLE_REVISION}.json`,
+      "application/json", JSON.stringify(bundle, null, 2));
+  const downloadOne = (key: string) =>
+    downloadBlob(key, "application/schema+json", JSON.stringify(JSON_SCHEMAS[key], null, 2));
+  const downloadFkCsv = () => {
+    const header = "from,to,on_missing,cascade,note";
+    const rows = FOREIGN_KEYS.map(fk => [fk.from, fk.to, fk.onMissing, fk.cascade, (fk.note ?? "").replace(/,/g, ";")].join(","));
+    downloadBlob("sxpf-foreign-keys.csv", "text/csv", [header, ...rows].join("\n"));
+  };
+
 
   return (
     <div className="max-w-5xl">
