@@ -80,6 +80,60 @@ const REASON_LABEL: Record<string, { label: string; color: string }> = {
   "provenance:tool_version": { label: "prov · tool version", color: "border-fuchsia-500/40 bg-fuchsia-500/10 text-fuchsia-300" },
 };
 
+// ---------------------------------------------------------------------------
+// Breaking-change classifier
+//
+// A change is "breaking" if a downstream consumer parsing SXPF against the
+// A-side spec could silently break under B. Provenance-only shifts (audit
+// metadata like tool version, source dialect) are non-breaking.
+// ---------------------------------------------------------------------------
+type Severity = "breaking" | "non-breaking";
+type ChangedField = { field: string; reason: string; a: string; b: string };
+
+const RT_RANK: Record<string, number> = { lossless: 0, semantic: 1, lossy: 2 };
+
+function classifyFieldChange(f: ChangedField): { severity: Severity; why: string } {
+  switch (f.field) {
+    case "target":
+      return { severity: "breaking", why: "target path moved — consumers reading old location will 404" };
+    case "kind":
+      return { severity: "breaking", why: "row kind changed — schema class of the artifact differs" };
+    case "round-trip": {
+      const ra = RT_RANK[f.a] ?? 0; const rb = RT_RANK[f.b] ?? 0;
+      return rb > ra
+        ? { severity: "breaking", why: `round-trip regressed ${f.a} → ${f.b}` }
+        : { severity: "non-breaking", why: `round-trip improved ${f.a} → ${f.b}` };
+    }
+    case "dialects": {
+      const A = new Set(f.a ? f.a.split("|") : []);
+      const B = new Set(f.b ? f.b.split("|") : []);
+      const removed = [...A].filter(d => !B.has(d));
+      return removed.length
+        ? { severity: "breaking", why: `dialect(s) dropped: ${removed.join(", ")}` }
+        : { severity: "non-breaking", why: "dialect coverage widened" };
+    }
+    case "prov · .inp section":
+      return { severity: "breaking", why: "row identity drifted — original .inp section reassigned" };
+    case "notes":
+      return { severity: "non-breaking", why: "notes copy-edit only" };
+    case "prov · dialect":
+      return { severity: "non-breaking", why: "audit-only: which dialect was sampled" };
+    case "prov · tool version":
+      return { severity: "non-breaking", why: "audit-only: exporter build changed" };
+    default:
+      return { severity: "non-breaking", why: "" };
+  }
+}
+
+function classifyChanged(fields: ChangedField[]): { severity: Severity; reasons: string[] } {
+  const results = fields.map(classifyFieldChange);
+  const breaking = results.filter(r => r.severity === "breaking");
+  if (breaking.length) return { severity: "breaking", reasons: breaking.map(r => r.why) };
+  return { severity: "non-breaking", reasons: results.map(r => r.why).filter(Boolean) };
+}
+
+
+
 const REQUIRED_PROV_FIELDS = [
   "source_dialect", "original_inp_section",
   "tool", "tool_version", "tool_commit", "tool_build_date",
