@@ -551,6 +551,16 @@ function DiffPage() {
                 <div key={c.section} className="rounded-md border border-border bg-card p-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="font-mono text-[12.5px] text-foreground">{c.section}</div>
+                    <span
+                      title={c.whys.join(" · ")}
+                      className={`rounded border px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-wider ${
+                        c.severity === "breaking"
+                          ? "border-rose-500/40 bg-rose-500/10 text-rose-300"
+                          : "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                      }`}
+                    >
+                      {c.severity}
+                    </span>
                     <div className="flex flex-wrap gap-1">
                       {[...c.reasons].map(r => (
                         <span key={r} className={`rounded border px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-wider ${REASON_LABEL[r]?.color ?? ""}`}>
