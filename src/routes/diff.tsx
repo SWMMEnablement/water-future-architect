@@ -410,24 +410,29 @@ function DiffPage() {
     const sections = new Set<string>([...ma.keys(), ...mb.keys()]);
     const added: string[] = [];
     const removed: string[] = [];
-    const changed: Array<{ section: string; fields: Array<{ field: string; reason: string; a: string; b: string }>; reasons: Set<string>; aRow: ExportRow; bRow: ExportRow }> = [];
+    const changed: Array<{ section: string; fields: ChangedField[]; reasons: Set<string>; aRow: ExportRow; bRow: ExportRow; severity: Severity; whys: string[] }> = [];
     const unchanged: string[] = [];
     for (const s of [...sections].sort()) {
       const ra = ma.get(s); const rb = mb.get(s);
       if (!ra && rb) { added.push(s); continue; }
       if (ra && !rb) { removed.push(s); continue; }
       if (ra && rb) {
-        const fields: Array<{ field: string; reason: string; a: string; b: string }> = [];
+        const fields: ChangedField[] = [];
         const reasons = new Set<string>();
         for (const spec of FIELD_SPECS) {
           const va = spec.get(ra); const vb = spec.get(rb);
           if (va !== vb) { fields.push({ field: spec.label, reason: spec.reason, a: va, b: vb }); reasons.add(spec.reason); }
         }
         if (fields.length === 0) unchanged.push(s);
-        else changed.push({ section: s, fields, reasons, aRow: ra, bRow: rb });
+        else {
+          const cls = classifyChanged(fields);
+          changed.push({ section: s, fields, reasons, aRow: ra, bRow: rb, severity: cls.severity, whys: cls.reasons });
+        }
       }
     }
-    return { added, removed, changed, unchanged };
+    const breakingCount =
+      removed.length + changed.filter(c => c.severity === "breaking").length;
+    return { added, removed, changed, unchanged, breakingCount };
   }, [a, b]);
 
 
