@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   KIND_COLOR,
   RT_COLOR,
+  MAPPING,
   SWMMX_SCHEMA_VERSION,
   MAPPING_SPEC_REVISION,
   TOOL_NAME,
@@ -78,6 +79,60 @@ const REASON_LABEL: Record<string, { label: string; color: string }> = {
   "provenance:inp_section": { label: "prov · .inp section", color: "border-violet-500/40 bg-violet-500/10 text-violet-300" },
   "provenance:tool_version": { label: "prov · tool version", color: "border-fuchsia-500/40 bg-fuchsia-500/10 text-fuchsia-300" },
 };
+
+// ---------------------------------------------------------------------------
+// Breaking-change classifier
+//
+// A change is "breaking" if a downstream consumer parsing SXPF against the
+// A-side spec could silently break under B. Provenance-only shifts (audit
+// metadata like tool version, source dialect) are non-breaking.
+// ---------------------------------------------------------------------------
+type Severity = "breaking" | "non-breaking";
+type ChangedField = { field: string; reason: string; a: string; b: string };
+
+const RT_RANK: Record<string, number> = { lossless: 0, semantic: 1, lossy: 2 };
+
+function classifyFieldChange(f: ChangedField): { severity: Severity; why: string } {
+  switch (f.field) {
+    case "target":
+      return { severity: "breaking", why: "target path moved — consumers reading old location will 404" };
+    case "kind":
+      return { severity: "breaking", why: "row kind changed — schema class of the artifact differs" };
+    case "round-trip": {
+      const ra = RT_RANK[f.a] ?? 0; const rb = RT_RANK[f.b] ?? 0;
+      return rb > ra
+        ? { severity: "breaking", why: `round-trip regressed ${f.a} → ${f.b}` }
+        : { severity: "non-breaking", why: `round-trip improved ${f.a} → ${f.b}` };
+    }
+    case "dialects": {
+      const A = new Set(f.a ? f.a.split("|") : []);
+      const B = new Set(f.b ? f.b.split("|") : []);
+      const removed = [...A].filter(d => !B.has(d));
+      return removed.length
+        ? { severity: "breaking", why: `dialect(s) dropped: ${removed.join(", ")}` }
+        : { severity: "non-breaking", why: "dialect coverage widened" };
+    }
+    case "prov · .inp section":
+      return { severity: "breaking", why: "row identity drifted — original .inp section reassigned" };
+    case "notes":
+      return { severity: "non-breaking", why: "notes copy-edit only" };
+    case "prov · dialect":
+      return { severity: "non-breaking", why: "audit-only: which dialect was sampled" };
+    case "prov · tool version":
+      return { severity: "non-breaking", why: "audit-only: exporter build changed" };
+    default:
+      return { severity: "non-breaking", why: "" };
+  }
+}
+
+function classifyChanged(fields: ChangedField[]): { severity: Severity; reasons: string[] } {
+  const results = fields.map(classifyFieldChange);
+  const breaking = results.filter(r => r.severity === "breaking");
+  if (breaking.length) return { severity: "breaking", reasons: breaking.map(r => r.why) };
+  return { severity: "non-breaking", reasons: results.map(r => r.why).filter(Boolean) };
+}
+
+
 
 const REQUIRED_PROV_FIELDS = [
   "source_dialect", "original_inp_section",
@@ -199,6 +254,118 @@ function downloadValidationCSV(
   URL.revokeObjectURL(url);
 }
 
+// ---------------------------------------------------------------------------
+// Example loader — synthesizes two exports from the canonical MAPPING so users
+// can inspect a non-empty diff (added / removed / changed / breaking) without
+// producing real .inp exports first.
+// ---------------------------------------------------------------------------
+const EXAMPLE_TOOL_A = { version: "0.4.0", commit: "a1f3c92e", build: "2026-06-20" };
+const EXAMPLE_TOOL_B = { version: "0.5.0", commit: "b7d20a11", build: "2026-07-24" };
+
+function makeProv(section: string, dialect: string, tool: { version: string; commit: string; build: string }): Provenance {
+  return {
+    source_dialect: dialect,
+    source_dialects: ["SWMM5", "SWMM6"],
+    original_inp_section: section,
+    tool: TOOL_NAME,
+    tool_version: tool.version,
+    tool_commit: tool.commit,
+    tool_build_date: tool.build,
+    spec_revision: MAPPING_SPEC_REVISION,
+    schema_version: SWMMX_SCHEMA_VERSION,
+  };
+}
+
+function makeExampleFile(
+  which: "a" | "b",
+  tool: { version: string; commit: string; build: string },
+): ExportFile {
+  const dialect = which === "a" ? "SWMM5" : "SWMM6";
+  const base: ExportRow[] = MAPPING
+    .filter(r => r.section !== "<unknown>")
+    .map(r => ({
+      ...r,
+      dialects: r.dialects ?? ["SWMM5", "SWMM6"],
+      provenance: makeProv(r.section, dialect, tool),
+    }));
+
+  const rows = base.map(r => ({ ...r, provenance: { ...r.provenance! } }));
+
+  if (which === "b") {
+    // Introduce a diverse set of drifts so the diff is illustrative.
+    for (const r of rows) {
+      switch (r.section) {
+        case "[CONDUITS]":
+          // BREAKING: target moved
+          r.target = "topology/links.parquet kind=conduit (v2)";
+          break;
+        case "[JUNCTIONS]":
+          // BREAKING: round-trip regressed lossless → semantic
+          r.roundTrip = "semantic";
+          break;
+        case "[STORAGE]":
+          // BREAKING: dialect dropped
+          r.dialects = ["SWMM6"];
+          break;
+        case "[POLLUTANTS]":
+          // BREAKING: kind changed (WQ)
+          r.kind = "topology";
+          break;
+        case "[TREATMENT]":
+          // NON-BREAKING: notes copy-edit
+          r.notes = r.notes + " · clarified verbatim retention";
+          break;
+        case "[RAINGAGES]":
+          // NON-BREAKING: round-trip improved semantic → lossless (already lossless — force semantic→lossless via A tweak below)
+          r.roundTrip = "lossless";
+          break;
+      }
+      // Tool version bump is audit-only (non-breaking) across every row.
+      if (r.provenance) {
+        r.provenance.tool_version = tool.version;
+        r.provenance.tool_commit = tool.commit;
+        r.provenance.tool_build_date = tool.build;
+      }
+    }
+
+    // Removed section (BREAKING): drop [LABELS]
+    const idxLabels = rows.findIndex(r => r.section === "[LABELS]");
+    if (idxLabels >= 0) rows.splice(idxLabels, 1);
+
+    // Added section (non-breaking): brand-new WQ passthrough
+    rows.push({
+      section: "[SNOWPACKS]",
+      target: "forcings/snowpacks.parquet",
+      kind: "forcings",
+      roundTrip: "lossless",
+      notes: "New in candidate export",
+      dialects: ["SWMM5", "SWMM6"],
+      provenance: makeProv("[SNOWPACKS]", dialect, tool),
+    });
+  } else {
+    // Seed A with a non-lossless [RAINGAGES] so B's improvement is visible.
+    const rg = rows.find(r => r.section === "[RAINGAGES]");
+    if (rg) rg.roundTrip = "semantic";
+  }
+
+  return {
+    metadata: {
+      swmmx_schema_version: SWMMX_SCHEMA_VERSION,
+      mapping_spec_revision: MAPPING_SPEC_REVISION,
+      exported_at: which === "a" ? "2026-06-20T09:15:00Z" : "2026-07-24T14:02:00Z",
+      source_dialects: [dialect],
+      provenance: {
+        tool: TOOL_NAME,
+        tool_version: tool.version,
+        tool_commit: tool.commit,
+        tool_build_date: tool.build,
+        input_inp_dialect: dialect,
+      },
+    },
+    rows,
+  };
+}
+
 function DiffPage() {
   const [a, setA] = useState<ExportFile | null>(null);
   const [b, setB] = useState<ExportFile | null>(null);
@@ -243,24 +410,29 @@ function DiffPage() {
     const sections = new Set<string>([...ma.keys(), ...mb.keys()]);
     const added: string[] = [];
     const removed: string[] = [];
-    const changed: Array<{ section: string; fields: Array<{ field: string; reason: string; a: string; b: string }>; reasons: Set<string>; aRow: ExportRow; bRow: ExportRow }> = [];
+    const changed: Array<{ section: string; fields: ChangedField[]; reasons: Set<string>; aRow: ExportRow; bRow: ExportRow; severity: Severity; whys: string[] }> = [];
     const unchanged: string[] = [];
     for (const s of [...sections].sort()) {
       const ra = ma.get(s); const rb = mb.get(s);
       if (!ra && rb) { added.push(s); continue; }
       if (ra && !rb) { removed.push(s); continue; }
       if (ra && rb) {
-        const fields: Array<{ field: string; reason: string; a: string; b: string }> = [];
+        const fields: ChangedField[] = [];
         const reasons = new Set<string>();
         for (const spec of FIELD_SPECS) {
           const va = spec.get(ra); const vb = spec.get(rb);
           if (va !== vb) { fields.push({ field: spec.label, reason: spec.reason, a: va, b: vb }); reasons.add(spec.reason); }
         }
         if (fields.length === 0) unchanged.push(s);
-        else changed.push({ section: s, fields, reasons, aRow: ra, bRow: rb });
+        else {
+          const cls = classifyChanged(fields);
+          changed.push({ section: s, fields, reasons, aRow: ra, bRow: rb, severity: cls.severity, whys: cls.reasons });
+        }
       }
     }
-    return { added, removed, changed, unchanged };
+    const breakingCount =
+      removed.length + changed.filter(c => c.severity === "breaking").length;
+    return { added, removed, changed, unchanged, breakingCount };
   }, [a, b]);
 
 
@@ -275,7 +447,34 @@ function DiffPage() {
         target, kind, round-trip, notes, and dialects.
       </p>
 
-      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="mt-6 flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => {
+            setA(makeExampleFile("a", EXAMPLE_TOOL_A));
+            setB(makeExampleFile("b", EXAMPLE_TOOL_B));
+            setErrA(null); setErrB(null);
+          }}
+          className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-mono uppercase tracking-wider text-amber-200 hover:bg-amber-500/20"
+        >
+          Load example diff
+        </button>
+        {(a || b) && (
+          <button
+            onClick={() => {
+              setA(null); setB(null); setErrA(null); setErrB(null);
+              setExpanded(new Set());
+            }}
+            className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-mono uppercase tracking-wider text-muted-foreground hover:text-foreground"
+          >
+            Clear
+          </button>
+        )}
+        <div className="text-[11px] text-muted-foreground">
+          Loads two synthetic exports (v{EXAMPLE_TOOL_A.version} → v{EXAMPLE_TOOL_B.version}) with a mix of breaking and non-breaking drifts.
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <FilePane side="a" label="A · base" file={a} err={errA} onFile={(f) => handleFile("a", f)} />
         <FilePane side="b" label="B · candidate" file={b} err={errB} onFile={(f) => handleFile("b", f)} />
       </div>
@@ -322,6 +521,7 @@ function DiffPage() {
               removed: diff.removed.length,
               changed: diff.changed.length,
               unchanged: diff.unchanged.length,
+              breaking: diff.breakingCount,
             }}
           />
 
@@ -351,6 +551,16 @@ function DiffPage() {
                 <div key={c.section} className="rounded-md border border-border bg-card p-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="font-mono text-[12.5px] text-foreground">{c.section}</div>
+                    <span
+                      title={c.whys.join(" · ")}
+                      className={`rounded border px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-wider ${
+                        c.severity === "breaking"
+                          ? "border-rose-500/40 bg-rose-500/10 text-rose-300"
+                          : "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                      }`}
+                    >
+                      {c.severity}
+                    </span>
                     <div className="flex flex-wrap gap-1">
                       {[...c.reasons].map(r => (
                         <span key={r} className={`rounded border px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-wider ${REASON_LABEL[r]?.color ?? ""}`}>
@@ -625,13 +835,14 @@ function ProvenanceCompare({ a, b }: { a: ExportFile; b: ExportFile }) {
   );
 }
 
-function SummaryBar({ counts }: { counts: { added: number; removed: number; changed: number; unchanged: number } }) {
+function SummaryBar({ counts }: { counts: { added: number; removed: number; changed: number; unchanged: number; breaking: number } }) {
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
       <Stat label="added" n={counts.added} color="text-emerald-400" />
       <Stat label="removed" n={counts.removed} color="text-rose-400" />
       <Stat label="changed" n={counts.changed} color="text-amber-400" />
       <Stat label="unchanged" n={counts.unchanged} color="text-muted-foreground" />
+      <Stat label="breaking" n={counts.breaking} color={counts.breaking > 0 ? "text-rose-400" : "text-emerald-400"} />
     </div>
   );
 }
