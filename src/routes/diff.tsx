@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   KIND_COLOR,
   RT_COLOR,
+  MAPPING,
   SWMMX_SCHEMA_VERSION,
   MAPPING_SPEC_REVISION,
   TOOL_NAME,
