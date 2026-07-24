@@ -1,4 +1,101 @@
 // Inline canonical SXPF v1 schemas + Arrow schemas used by the viewer page.
+//
+// Canonical bundle metadata — bumped whenever any JSON_SCHEMAS entry, PARQUET_LIST
+// table, CANONICAL_UNITS, CANONICAL_CRS, CANONICAL_TIMESTAMPS or FOREIGN_KEYS changes.
+export const SXPF_SCHEMA_VERSION = "1.0.0";
+export const SXPF_BUNDLE_REVISION = "2026-07-24";
+export const SXPF_BUNDLE_ID = "https://swmm-x.org/schemas/sxpf/1.0/bundle.json";
+
+// ---------------------------------------------------------------------------
+// Canonical unit system — every numeric field in JSON_SCHEMAS / PARQUET_LIST
+// must resolve to one of these. Conversions are pinned so validators agree.
+// ---------------------------------------------------------------------------
+export const CANONICAL_UNITS = {
+  system: "SI-internal",
+  note: "Storage is SI. UI/exports can display US customary; the canonical file is SI.",
+  dimensions: {
+    length: { unit: "m", allowedDisplay: ["m", "ft"] },
+    area: { unit: "m2", allowedDisplay: ["m2", "ha", "ac"] },
+    volume: { unit: "m3", allowedDisplay: ["m3", "L", "MG"] },
+    flow: { unit: "m3/s", allowedDisplay: ["CMS", "LPS", "MLD", "CFS", "GPM", "MGD"] },
+    velocity: { unit: "m/s" },
+    concentration: { unit: "mg/L", allowedDisplay: ["mg/L", "ug/L", "#/L"] },
+    mass: { unit: "kg" },
+    time: { unit: "s", timestamp: "ISO-8601 UTC (ms precision)" },
+    temperature: { unit: "degC" },
+    rainfall_intensity: { unit: "mm/h", allowedDisplay: ["mm/h", "in/h"] },
+    slope: { unit: "m/m" },
+    manning_n: { unit: "dimensionless" },
+  },
+} as const;
+
+// ---------------------------------------------------------------------------
+// Canonical CRS rules — geometry is stored in a single project CRS; a
+// WGS84 geographic column is always present for cross-project queries.
+// ---------------------------------------------------------------------------
+export const CANONICAL_CRS = {
+  storage: "EPSG code or WKT string, pinned per-project in manifest.project.crs",
+  required: {
+    projected: {
+      column: "geom",
+      encoding: "GeoParquet 1.1 WKB",
+      note: "Project CRS — used for length/area computations.",
+    },
+    geographic: {
+      column: "geom_wgs84",
+      encoding: "GeoParquet 1.1 WKB",
+      crs: "EPSG:4326",
+      note: "Always derived, always present. Enables cross-project spatial joins.",
+    },
+  },
+  vertical: { datum: "orthometric (per manifest.project.vertical_datum)", unit: "m" },
+} as const;
+
+// ---------------------------------------------------------------------------
+// Canonical timestamp rules — every ts column is UTC ms; simulation clocks
+// are anchored to a wall-clock start declared in the run record.
+// ---------------------------------------------------------------------------
+export const CANONICAL_TIMESTAMPS = {
+  wireType: "timestamp[ms, UTC]",
+  encoding: "int64 delta-of-delta",
+  timezone: "UTC — display TZ lives in manifest.project.display_tz",
+  simulationClock: {
+    anchor: "run.started (ISO-8601 UTC)",
+    resolution_s: "run.solver.report_step_s",
+    windowClosedLeftOpenRight: true,
+  },
+  eventWindows: "start_ts inclusive, end_ts exclusive; duration_s = (end_ts - start_ts)/1000",
+} as const;
+
+// ---------------------------------------------------------------------------
+// Canonical foreign-key rules — validated at ingest and by the diff tool.
+// (parent.column) → (child.column). All keys are string dictionaries.
+// ---------------------------------------------------------------------------
+export type ForeignKey = {
+  from: string;              // "child_table.column"
+  to: string;                // "parent_table.column"
+  onMissing: "reject" | "warn";
+  cascade: "none" | "delete" | "null";
+  note?: string;
+};
+
+export const FOREIGN_KEYS: ForeignKey[] = [
+  { from: "links.from_node", to: "nodes.id", onMissing: "reject", cascade: "none" },
+  { from: "links.to_node", to: "nodes.id", onMissing: "reject", cascade: "none" },
+  { from: "subcatchments.outlet", to: "nodes.id|subcatchments.id", onMissing: "reject", cascade: "none", note: "outlet may be a node OR another subcatchment" },
+  { from: "timeseries_node.element_id", to: "nodes.id", onMissing: "warn", cascade: "none" },
+  { from: "timeseries_node.run_id", to: "runs.run_id", onMissing: "reject", cascade: "delete" },
+  { from: "summary.element_id", to: "nodes.id|links.id|subcatchments.id", onMissing: "reject", cascade: "none" },
+  { from: "events.element_id", to: "nodes.id|links.id", onMissing: "reject", cascade: "none" },
+  { from: "quality_landuse.pollutant_id", to: "quality_pollutants.pollutant_id", onMissing: "reject", cascade: "none" },
+  { from: "quality_landuse.subcatchment_id", to: "subcatchments.id", onMissing: "warn", cascade: "none" },
+  { from: "quality_treatment.node_id", to: "nodes.id", onMissing: "reject", cascade: "none" },
+  { from: "quality_treatment.pollutant_id", to: "quality_pollutants.pollutant_id", onMissing: "reject", cascade: "none" },
+  { from: "scenarios.extends", to: "scenarios.id", onMissing: "reject", cascade: "none" },
+  { from: "runs.scenario_id", to: "scenarios.id", onMissing: "reject", cascade: "none" },
+];
+
+
 
 export const JSON_SCHEMAS: Record<string, unknown> = {
   "sxpf.schema.json": {
@@ -303,3 +400,35 @@ export const PARQUET_LIST: ParquetTable[] = [
     ],
   },
 ];
+
+// ---------------------------------------------------------------------------
+// Canonical bundle — single artifact other components validate against.
+// ---------------------------------------------------------------------------
+export type CanonicalBundle = {
+  $id: string;
+  sxpf_schema_version: string;
+  bundle_revision: string;
+  generated_at: string;
+  units: typeof CANONICAL_UNITS;
+  crs: typeof CANONICAL_CRS;
+  timestamps: typeof CANONICAL_TIMESTAMPS;
+  foreign_keys: ForeignKey[];
+  json_schemas: Record<string, unknown>;
+  parquet_tables: ParquetTable[];
+};
+
+export function buildCanonicalBundle(now: Date = new Date()): CanonicalBundle {
+  return {
+    $id: SXPF_BUNDLE_ID,
+    sxpf_schema_version: SXPF_SCHEMA_VERSION,
+    bundle_revision: SXPF_BUNDLE_REVISION,
+    generated_at: now.toISOString(),
+    units: CANONICAL_UNITS,
+    crs: CANONICAL_CRS,
+    timestamps: CANONICAL_TIMESTAMPS,
+    foreign_keys: FOREIGN_KEYS,
+    json_schemas: JSON_SCHEMAS,
+    parquet_tables: PARQUET_LIST,
+  };
+}
+
