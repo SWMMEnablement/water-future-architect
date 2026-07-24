@@ -521,6 +521,7 @@ function DiffPage() {
               removed: diff.removed.length,
               changed: diff.changed.length,
               unchanged: diff.unchanged.length,
+              breaking: diff.breakingCount,
             }}
           />
 
