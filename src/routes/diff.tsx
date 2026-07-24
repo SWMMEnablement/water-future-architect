@@ -447,7 +447,34 @@ function DiffPage() {
         target, kind, round-trip, notes, and dialects.
       </p>
 
-      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="mt-6 flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => {
+            setA(makeExampleFile("a", EXAMPLE_TOOL_A));
+            setB(makeExampleFile("b", EXAMPLE_TOOL_B));
+            setErrA(null); setErrB(null);
+          }}
+          className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-mono uppercase tracking-wider text-amber-200 hover:bg-amber-500/20"
+        >
+          Load example diff
+        </button>
+        {(a || b) && (
+          <button
+            onClick={() => {
+              setA(null); setB(null); setErrA(null); setErrB(null);
+              setExpanded(new Set());
+            }}
+            className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-mono uppercase tracking-wider text-muted-foreground hover:text-foreground"
+          >
+            Clear
+          </button>
+        )}
+        <div className="text-[11px] text-muted-foreground">
+          Loads two synthetic exports (v{EXAMPLE_TOOL_A.version} → v{EXAMPLE_TOOL_B.version}) with a mix of breaking and non-breaking drifts.
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <FilePane side="a" label="A · base" file={a} err={errA} onFile={(f) => handleFile("a", f)} />
         <FilePane side="b" label="B · candidate" file={b} err={errB} onFile={(f) => handleFile("b", f)} />
       </div>
