@@ -324,3 +324,8 @@ function Meta({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">{children}</div>;
+}
+
