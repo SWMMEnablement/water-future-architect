@@ -254,6 +254,118 @@ function downloadValidationCSV(
   URL.revokeObjectURL(url);
 }
 
+// ---------------------------------------------------------------------------
+// Example loader — synthesizes two exports from the canonical MAPPING so users
+// can inspect a non-empty diff (added / removed / changed / breaking) without
+// producing real .inp exports first.
+// ---------------------------------------------------------------------------
+const EXAMPLE_TOOL_A = { version: "0.4.0", commit: "a1f3c92e", build: "2026-06-20" };
+const EXAMPLE_TOOL_B = { version: "0.5.0", commit: "b7d20a11", build: "2026-07-24" };
+
+function makeProv(section: string, dialect: string, tool: { version: string; commit: string; build: string }): Provenance {
+  return {
+    source_dialect: dialect,
+    source_dialects: ["SWMM5", "SWMM6"],
+    original_inp_section: section,
+    tool: TOOL_NAME,
+    tool_version: tool.version,
+    tool_commit: tool.commit,
+    tool_build_date: tool.build,
+    spec_revision: MAPPING_SPEC_REVISION,
+    schema_version: SWMMX_SCHEMA_VERSION,
+  };
+}
+
+function makeExampleFile(
+  which: "a" | "b",
+  tool: { version: string; commit: string; build: string },
+): ExportFile {
+  const dialect = which === "a" ? "SWMM5" : "SWMM6";
+  const base: ExportRow[] = MAPPING
+    .filter(r => r.section !== "<unknown>")
+    .map(r => ({
+      ...r,
+      dialects: r.dialects ?? ["SWMM5", "SWMM6"],
+      provenance: makeProv(r.section, dialect, tool),
+    }));
+
+  const rows = base.map(r => ({ ...r, provenance: { ...r.provenance! } }));
+
+  if (which === "b") {
+    // Introduce a diverse set of drifts so the diff is illustrative.
+    for (const r of rows) {
+      switch (r.section) {
+        case "[CONDUITS]":
+          // BREAKING: target moved
+          r.target = "topology/links.parquet kind=conduit (v2)";
+          break;
+        case "[JUNCTIONS]":
+          // BREAKING: round-trip regressed lossless → semantic
+          r.roundTrip = "semantic";
+          break;
+        case "[STORAGE]":
+          // BREAKING: dialect dropped
+          r.dialects = ["SWMM6"];
+          break;
+        case "[POLLUTANTS]":
+          // BREAKING: kind changed (WQ)
+          r.kind = "topology";
+          break;
+        case "[TREATMENT]":
+          // NON-BREAKING: notes copy-edit
+          r.notes = r.notes + " · clarified verbatim retention";
+          break;
+        case "[RAINGAGES]":
+          // NON-BREAKING: round-trip improved semantic → lossless (already lossless — force semantic→lossless via A tweak below)
+          r.roundTrip = "lossless";
+          break;
+      }
+      // Tool version bump is audit-only (non-breaking) across every row.
+      if (r.provenance) {
+        r.provenance.tool_version = tool.version;
+        r.provenance.tool_commit = tool.commit;
+        r.provenance.tool_build_date = tool.build;
+      }
+    }
+
+    // Removed section (BREAKING): drop [LABELS]
+    const idxLabels = rows.findIndex(r => r.section === "[LABELS]");
+    if (idxLabels >= 0) rows.splice(idxLabels, 1);
+
+    // Added section (non-breaking): brand-new WQ passthrough
+    rows.push({
+      section: "[SNOWPACKS]",
+      target: "forcings/snowpacks.parquet",
+      kind: "forcings",
+      roundTrip: "lossless",
+      notes: "New in candidate export",
+      dialects: ["SWMM5", "SWMM6"],
+      provenance: makeProv("[SNOWPACKS]", dialect, tool),
+    });
+  } else {
+    // Seed A with a non-lossless [RAINGAGES] so B's improvement is visible.
+    const rg = rows.find(r => r.section === "[RAINGAGES]");
+    if (rg) rg.roundTrip = "semantic";
+  }
+
+  return {
+    metadata: {
+      swmmx_schema_version: SWMMX_SCHEMA_VERSION,
+      mapping_spec_revision: MAPPING_SPEC_REVISION,
+      exported_at: which === "a" ? "2026-06-20T09:15:00Z" : "2026-07-24T14:02:00Z",
+      source_dialects: [dialect],
+      provenance: {
+        tool: TOOL_NAME,
+        tool_version: tool.version,
+        tool_commit: tool.commit,
+        tool_build_date: tool.build,
+        input_inp_dialect: dialect,
+      },
+    },
+    rows,
+  };
+}
+
 function DiffPage() {
   const [a, setA] = useState<ExportFile | null>(null);
   const [b, setB] = useState<ExportFile | null>(null);
