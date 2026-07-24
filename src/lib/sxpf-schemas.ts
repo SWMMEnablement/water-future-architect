@@ -400,3 +400,35 @@ export const PARQUET_LIST: ParquetTable[] = [
     ],
   },
 ];
+
+// ---------------------------------------------------------------------------
+// Canonical bundle — single artifact other components validate against.
+// ---------------------------------------------------------------------------
+export type CanonicalBundle = {
+  $id: string;
+  sxpf_schema_version: string;
+  bundle_revision: string;
+  generated_at: string;
+  units: typeof CANONICAL_UNITS;
+  crs: typeof CANONICAL_CRS;
+  timestamps: typeof CANONICAL_TIMESTAMPS;
+  foreign_keys: ForeignKey[];
+  json_schemas: Record<string, unknown>;
+  parquet_tables: ParquetTable[];
+};
+
+export function buildCanonicalBundle(now: Date = new Date()): CanonicalBundle {
+  return {
+    $id: SXPF_BUNDLE_ID,
+    sxpf_schema_version: SXPF_SCHEMA_VERSION,
+    bundle_revision: SXPF_BUNDLE_REVISION,
+    generated_at: now.toISOString(),
+    units: CANONICAL_UNITS,
+    crs: CANONICAL_CRS,
+    timestamps: CANONICAL_TIMESTAMPS,
+    foreign_keys: FOREIGN_KEYS,
+    json_schemas: JSON_SCHEMAS,
+    parquet_tables: PARQUET_LIST,
+  };
+}
+
