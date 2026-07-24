@@ -835,13 +835,14 @@ function ProvenanceCompare({ a, b }: { a: ExportFile; b: ExportFile }) {
   );
 }
 
-function SummaryBar({ counts }: { counts: { added: number; removed: number; changed: number; unchanged: number } }) {
+function SummaryBar({ counts }: { counts: { added: number; removed: number; changed: number; unchanged: number; breaking: number } }) {
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
       <Stat label="added" n={counts.added} color="text-emerald-400" />
       <Stat label="removed" n={counts.removed} color="text-rose-400" />
       <Stat label="changed" n={counts.changed} color="text-amber-400" />
       <Stat label="unchanged" n={counts.unchanged} color="text-muted-foreground" />
+      <Stat label="breaking" n={counts.breaking} color={counts.breaking > 0 ? "text-rose-400" : "text-emerald-400"} />
     </div>
   );
 }
