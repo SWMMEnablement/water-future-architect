@@ -1,0 +1,10 @@
+# Netlify build for the TanStack Start + Nitro app.
+# NITRO_PRESET overrides the Lovable default (cloudflare) so Nitro emits
+# static assets to dist/ and the SSR handler to .netlify/functions-internal/.
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NITRO_PRESET = "netlify"
+  NODE_VERSION = "20"
