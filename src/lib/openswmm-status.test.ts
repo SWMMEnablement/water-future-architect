@@ -30,7 +30,7 @@ test("UNOFFICIAL card matches expected snapshot", () => {
     id: "unofficial",
     kicker: "Unofficial roadmap",
     value: "5.3.0 → 6.0.0",
-    detail: "openswmm 6.0.0a2 on PyPI (Jul 7 2026) · Buahin / HydroCouple",
+    detail: "openswmm 6.0.0a4.dev1 on PyPI (Oct 1 2026) · Buahin / HydroCouple",
   });
 });
 
@@ -40,7 +40,7 @@ test("BRANCH card matches expected snapshot", () => {
     kicker: "Current branch",
     value: "swmm6_rel",
     valueMono: true,
-    detail: "v6.0.0-alpha.2 · HydroCouple/openswmm.engine",
+    detail: "v6.0.0-alpha.3 tagged Aug 12 2026 · alpha.4 in progress · HydroCouple/openswmm.engine",
   });
 });
 

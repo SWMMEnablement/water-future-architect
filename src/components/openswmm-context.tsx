@@ -49,13 +49,14 @@ export const OPENSWMM_SOURCES: Source[] = [
   },
   {
     id: "swmm6-rel",
-    label: `HydroCouple/Stormwater-Management-Model — ${BRANCH.value} branch`,
-    url: `https://github.com/hydrocouple/Stormwater-Management-Model/tree/${BRANCH.value}`,
+    label: `HydroCouple/openswmm.engine — ${BRANCH.value} branch`,
+    url: `https://github.com/HydroCouple/openswmm.engine/tree/${BRANCH.value}`,
     note: "Source of the +11,232 / −5,780 line diff, SWMM_Engine handle, and swmm5_stats.c.",
   },
   {
     id: "openswmm-pypi",
-    label: `openswmm 6.0.0a2 on PyPI (Jul 7 2026)`,
+    label: `openswmm 6.0.0a4.dev1 on PyPI (Oct 1 2026)`,
+    note: "Latest non-dev alpha is 6.0.0a3 (Aug 17 2026).",
     url: "https://pypi.org/project/openswmm/",
   },
   {
@@ -152,9 +153,11 @@ export function OpenSwmmContext({ compact = false }: { compact?: boolean }) {
 
           <h3 className="mt-8 mb-2 text-lg font-semibold tracking-tight">Packaging is pre-release</h3>
           <p className="my-3 text-[15px] leading-7 text-foreground/90">
-            <Code>openswmm</Code> sits at <Code>6.0.0a2</Code> on PyPI (released Jul 7 2026)
-            <Fn n={5} id="openswmm-pypi" />; <Code>epaswmm</Code> is still alpha, awaiting EPA's
-            own QA clearance<Fn n={6} id="epaswmm-pypi" />.
+            <Code>openswmm</Code> sits at <Code>6.0.0a4.dev1</Code> on PyPI (released Oct 1 2026; the
+            latest non-dev alpha is <Code>6.0.0a3</Code>, Aug 17 2026)<Fn n={5} id="openswmm-pypi" />;{" "}
+            <Code>epaswmm</Code> is still alpha, awaiting EPA's own QA clearance
+            <Fn n={6} id="epaswmm-pypi" />. The <Code>{BRANCH.value}</Code> engine is licensed
+            Apache-2.0.
           </p>
 
           <h3 className="mt-8 mb-2 text-lg font-semibold tracking-tight">Not to conflate</h3>

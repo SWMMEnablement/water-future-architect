@@ -220,7 +220,8 @@ function Plan() {
       <footer className="mt-16 border-t border-border pt-5 text-[12.5px] text-muted-foreground">
         Document history: base architecture RFC via Lovable · OpenSWMM / SWMM6 status section
         added July 5, 2026 · guided tour + subpage context added July 10, 2026 · reproducibility
-        tiers + hybrid-solver clarification + WQ resolution added July 23, 2026.
+        tiers + hybrid-solver clarification + WQ resolution added July 23, 2026 · OpenSWMM
+        versions refreshed October 11, 2026.
       </footer>
     </article>
   );
